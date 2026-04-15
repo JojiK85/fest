@@ -1,0 +1,299 @@
+/* ==========================================
+   AUTUMN FEST - SHARED CSS
+   ========================================== */
+
+:root {
+  --primary: #f43f5e; /* Rose 500 */
+  --bg-dark: #070505;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: #e2e8f0;
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  touch-action: manipulation;
+}
+
+h1,
+h2,
+h3,
+.font-serif {
+  font-family: 'Cinzel', serif;
+}
+
+/* --- Page Transition Animations --- */
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Navigation Styles --- */
+.nav-link {
+  position: relative;
+  transition: color 0.3s;
+}
+
+.nav-link.active {
+  color: var(--primary);
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: -4px;
+  left: 0;
+  background-color: var(--primary);
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px rgba(225, 29, 72, 0.8);
+}
+
+.nav-link.active::after,
+.nav-link:hover::after {
+  width: 100%;
+}
+
+/* --- Orbiting UI (Events Page) --- */
+.orbit-container {
+  position: relative;
+  width: 100%;
+  height: 350px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+}
+
+@media (min-width: 1024px) {
+  .orbit-container {
+    height: 500px;
+  }
+}
+
+.orbit-ring {
+  position: absolute;
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  border: 1px dashed rgba(244, 63, 94, 0.3);
+  animation: spin 35s linear infinite;
+  z-index: 10;
+}
+
+@media (min-width: 640px) {
+  .orbit-ring {
+    width: 280px;
+    height: 280px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .orbit-ring {
+    width: 380px;
+    height: 380px;
+  }
+}
+
+.orbit-node {
+  position: absolute;
+  width: 76px;
+  height: 76px;
+  animation: counter-spin 35s linear infinite;
+}
+
+@media (min-width: 640px) {
+  .orbit-node {
+    width: 90px;
+    height: 90px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .orbit-node {
+    width: 128px;
+    height: 128px;
+  }
+}
+
+.orbit-container:has(.orbit-circle-btn:hover) .orbit-ring,
+.orbit-container:has(.orbit-circle-btn:hover) .orbit-node {
+  animation-play-state: paused;
+}
+
+.orbit-circle-btn {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(9, 9, 11, 0.9);
+  border: 2px solid #27272a;
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.orbit-circle-btn.active-category,
+.orbit-circle-btn:hover {
+  border-color: var(--primary);
+  transform: scale(1.1);
+  box-shadow: 0 0 25px rgba(225, 29, 72, 0.4);
+}
+
+/* Node Positions */
+.pos-0 { top: 0%; left: 50%; transform: translate(-50%, -50%); }
+.pos-1 { top: 34.55%; left: 97.55%; transform: translate(-50%, -50%); }
+.pos-2 { top: 90.45%; left: 79.39%; transform: translate(-50%, -50%); }
+.pos-3 { top: 90.45%; left: 20.61%; transform: translate(-50%, -50%); }
+.pos-4 { top: 34.55%; left: 2.45%; transform: translate(-50%, -50%); }
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes counter-spin {
+  100% { transform: rotate(-360deg); }
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 30px rgba(225, 29, 72, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 50px rgba(225, 29, 72, 0.7);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 30px rgba(225, 29, 72, 0.4);
+    transform: scale(1);
+  }
+}
+
+.center-focal {
+  animation: pulse-glow 3s infinite;
+}
+
+/* --- Hero Background Elements --- */
+.leaf {
+  position: absolute;
+  font-size: clamp(16px, 3vw, 30px);
+  animation: fall linear infinite;
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes fall {
+  0% {
+    transform: translateY(-80px) rotate(0deg);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(110vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* --- Custom Scrollbar --- */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* --- General Utilities & Sub-Components --- */
+.admin-tab-btn.active {
+  background-color: rgba(225, 29, 72, 0.1);
+  color: #f43f5e;
+  border-color: rgba(225, 29, 72, 0.5);
+}
+
+.gallery-overlay-item {
+  transform: translateY(20px);
+  opacity: 0;
+  transition: all 0.3s ease-out;
+}
+
+.group:hover .gallery-overlay-item {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.delay-100 {
+  transition-delay: 100ms;
+}
+
+.delay-200 {
+  transition-delay: 200ms;
+}
+
+/* Double Tap Heart Animation */
+@keyframes popHeart { 
+  0% { transform: scale(0); opacity: 0; } 
+  20% { transform: scale(1.3); opacity: 1; } 
+  60% { transform: scale(1); opacity: 1; } 
+  100% { transform: scale(1.6); opacity: 0; } 
+}
+
+/* --- QR Reader Overrides --- */
+#reader {
+  border: none !important;
+  margin: 0 auto;
+  background: transparent;
+}
+
+#reader video {
+  border-radius: 1rem !important;
+  object-fit: cover;
+  width: 100%;
+}
+
+#reader canvas {
+  display: none !important;
+}
+
+/* --- Anti-Flicker / State Classes --- */
+/* Hide Admin links by default */
+#nav-admin, #mobile-nav-admin {
+    display: none !important;
+}
+
+/* Show Admin links instantly if the user is an admin */
+html.is-admin #nav-admin {
+    display: block !important;
+}
+html.is-admin #mobile-nav-admin {
+    display: flex !important;
+}

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- This meta tag gives the MPA a seamless SPA-like page transition -->
+    <meta name="view-transition" content="same-origin">
+    <title>Accommodation - AUTUMN 2026 | College Fest</title>
+    
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="shared.css">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="shared.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="relative">
+
+    <!-- ================= AMBIENT BACKGROUND ================= -->
+    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div class="absolute inset-0 opacity-40">
+            <div class="absolute top-[20%] left-[10%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-rose-900/20 rounded-full blur-[100px] md:blur-[120px]"></div>
+            <div class="absolute bottom-[10%] right-[10%] w-[400px] md:w-[600px] h-[400px] md:h-[600px] bg-amber-900/10 rounded-full blur-[120px] md:blur-[150px]"></div>
+            <div class="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:24px_24px] opacity-20"></div>
+        </div>
+        <div id="heroLeaves" class="absolute inset-0"></div>
+    </div>
+
+    <!-- ================= NAVBAR ================= -->
+    <nav class="fixed top-0 w-full z-50 bg-black/60 backdrop-blur-xl border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
+
+            <a href="home.html" class="text-2xl font-black font-serif tracking-tighter text-white cursor-pointer flex items-center gap-2 group z-20">
+                <i data-lucide="leaf" class="w-8 h-8 text-rose-500 transition-transform group-hover:scale-110"></i> AUTUMN
+            </a>
+
+            <!-- Desktop Nav Links -->
+            <div id="desktop-nav-links" class="hidden md:flex items-center gap-4 lg:gap-8">
+                <a href="home.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-home">Home</a>
+                <a href="events.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-events">Events</a>
+                <a href="accommodation.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-accommodation">Stay</a>
+                <a href="gallery.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-gallery">Gallery</a>
+                <a href="sponsors.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-sponsors">Sponsors</a>
+                <a href="contact.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-contact">Contact Us</a>
+                <a href="profile.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-profile">Profile</a>
+                <a href="admin.html" class="nav-link text-sm font-bold tracking-wider uppercase text-rose-500 hover:text-rose-400 pb-1 hidden" id="nav-admin">Admin</a>
+            </div>
+
+            <div class="flex items-center gap-4 z-20">
+                <a href="index.html" id="nav-auth-btn" class="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 hover:bg-white text-white hover:text-black font-bold text-sm transition border border-white/10">
+                    <i data-lucide="log-in" class="w-4 h-4"></i> Sign In
+                </a>
+
+                <button class="md:hidden text-white" id="mobile-menu-btn" onclick="toggleMobileMenu()">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden absolute top-20 left-0 w-full bg-black/95 border-b border-white/5 flex-col items-center py-6 gap-6 z-10 shadow-2xl max-h-[calc(100vh-80px)] overflow-y-auto pb-10">
+            <div id="mobile-nav-links" class="hidden flex-col items-center gap-6 w-full">
+                <a href="home.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Home</a>
+                <a href="events.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Events</a>
+                <a href="accommodation.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Stay</a>
+                <a href="gallery.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Gallery</a>
+                <a href="sponsors.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Sponsors</a>
+                <a href="contact.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Contact</a>
+                <a href="profile.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Profile</a>
+                <a href="admin.html" class="text-lg font-bold tracking-wider uppercase text-rose-500 hover:text-rose-400 hidden" id="mobile-nav-admin">Admin</a>
+            </div>
+
+            <a href="index.html" id="mobile-auth-btn" class="w-11/12 max-w-xs mx-auto py-3 rounded-xl bg-rose-600 text-white font-bold tracking-wider uppercase mt-2 hover:bg-rose-500 transition-colors shadow-lg flex items-center justify-center gap-2">
+                <i data-lucide="log-in" class="w-5 h-5"></i> Sign In
+            </a>
+        </div>
+    </nav>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <main class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-28 pb-20 min-h-[calc(100vh-80px)] animate-[fadeInSlide_0.5s_ease-out]">
+        
+        <section id="accommodation">
+            <div class="text-center mb-8 sm:mb-12">
+                <h2 class="text-3xl md:text-5xl font-black text-white font-serif tracking-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.2)] mb-4">
+                    ACCOMMODATION
+                </h2>
+                <p class="text-base sm:text-lg text-zinc-400 max-w-2xl mx-auto font-light px-4">
+                    Book your stay on campus during the fest. Safe, affordable, and close to the action.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 max-w-6xl mx-auto">
+                <!-- Info Section -->
+                <div class="lg:col-span-5 space-y-6">
+                    <div class="bg-zinc-900/60 border border-white/10 rounded-3xl p-5 sm:p-6 shadow-xl">
+                        <div class="flex items-center gap-3 mb-4 text-emerald-400">
+                            <i data-lucide="shield-check" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                            <h3 class="text-base sm:text-lg font-bold text-white">Safe & Secure</h3>
+                        </div>
+                        <p class="text-xs sm:text-sm text-zinc-400 leading-relaxed mb-6">Separate wings for Male and Female attendees. 24/7 campus security and dedicated student volunteers to assist you. All rooms are triple occupancy to encourage networking.</p>
+                        
+                        <div class="space-y-4">
+                            <div class="bg-black/40 p-3 sm:p-4 rounded-2xl border border-white/5 flex justify-between items-center">
+                                <div><p class="text-white font-bold text-xs sm:text-sm">Triple Occupancy</p><p class="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Shared with 2 others</p></div>
+                                <div class="text-right"><p class="text-emerald-400 font-bold text-sm sm:text-base">₹300</p><p class="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Per Day</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Booking Form -->
+                <div class="lg:col-span-7 bg-zinc-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-5 sm:p-6 md:p-8 shadow-xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
+                    <h3 class="text-xl sm:text-2xl font-bold text-white mb-6 relative z-10">Book Your Stay</h3>
+                    
+                    <form onsubmit="event.preventDefault(); processRoomBooking();" class="space-y-4 sm:space-y-5 relative z-10">
+                        
+                        <div class="bg-black/40 p-4 rounded-xl border border-white/10 mb-4 sm:mb-5">
+                            <p class="text-white font-bold text-sm flex justify-between"><span>Triple Occupancy Room</span> <span class="text-emerald-400">₹300 / Day</span></p>
+                            <p class="text-[10px] sm:text-xs text-zinc-400 mt-1">Shared with 2 other attendees. Room number will be auto-assigned by admins based on your requested roommate IDs.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                            <div>
+                                <label class="block text-[10px] uppercase text-zinc-500 font-bold mb-2 ml-1">Wing</label>
+                                <select id="roomWing" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-xs sm:text-sm focus:border-rose-500 appearance-none" required>
+                                    <option value="male">Male Wing</option>
+                                    <option value="female">Female Wing</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase text-zinc-500 font-bold mb-2 ml-1">Duration</label>
+                                <select id="roomDuration" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-xs sm:text-sm focus:border-rose-500 appearance-none" onchange="calculateRoomCost()" required>
+                                    <option value="full" data-days="3">Full Fest (3 Days)</option>
+                                    <option value="1" data-days="1">1 Day</option>
+                                    <option value="2" data-days="2">2 Days</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] uppercase text-zinc-500 font-bold mb-2 ml-1">Request Roommate IDs (Optional)</label>
+                            <input type="text" id="roommateId" placeholder="e.g., AUT-26-1111, AUT-26-2222" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-xs sm:text-sm focus:border-rose-500 transition">
+                            <p class="text-[9px] sm:text-[10px] text-zinc-500 mt-1 ml-1">Comma separated account IDs. We will attempt to group you together in a triple room.</p>
+                        </div>
+
+                        <div class="pt-4 border-t border-white/10 flex justify-between items-center">
+                            <div>
+                                <p class="text-[10px] uppercase text-zinc-500 font-bold mb-1">Total Cost</p>
+                                <p class="text-xl sm:text-2xl font-bold text-amber-400" id="roomTotalCost">₹900</p>
+                            </div>
+                            <button type="submit" class="px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm sm:text-base font-bold transition shadow-[0_0_15px_rgba(37,99,235,0.4)]">
+                                Proceed
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ================= FOOTER ================= -->
+    <footer class="relative z-10 bg-[#050505] border-t border-rose-900/30 pt-12 sm:pt-16 pb-8 mt-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col items-center gap-6 sm:gap-8">
+            <div class="text-2xl sm:text-3xl font-black font-serif tracking-tighter text-white flex items-center gap-2 sm:gap-3">
+                <i data-lucide="leaf" class="text-rose-500 w-6 h-6 sm:w-8 sm:h-8"></i> AUTUMN
+            </div>
+
+            <div class="flex gap-4 sm:gap-6 justify-center">
+                <a href="#" aria-label="Instagram" class="w-10 h-10 sm:w-12 sm:h-12 bg-zinc-900/80 border border-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:bg-rose-600 hover:text-white transition-all hover:scale-110 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2c2.717 0 3.056.01 4.122.06 1.065.05 1.79.217 2.428.492a4.88 4.88 0 0 1 1.77 1.153 4.902 4.902 0 0 1 1.153 1.772c.275.639.442 1.363.492 2.428.05 1.066.06 1.405.06 4.122 0 2.717-.01 3.056-.06 4.122-.05 1.065-.217 1.79-.492 2.428a4.883 4.883 0 0 1-1.153 1.772 4.902 4.902 0 0 1-1.772 1.153c-.639.275-1.363.442-2.428.492-1.066.05-1.405.06-4.122.06-2.717 0-3.056-.01-4.122-.06-1.065-.05-1.79-.217-2.428-.492a4.883 4.883 0 0 1-1.77-1.153 4.902 4.902 0 0 1-1.153-1.772c-.275-.639-.442-1.363-.492-2.428C2.01 15.056 2 14.717 2 12c0-2.717.01-3.056.06-4.122.05-1.065.217-1.79.492-2.428a4.88 4.88 0 0 1 1.153-1.77 4.902 4.902 0 0 1 1.772-1.153C6.118 2.227 6.843 2.06 7.908 2.01 8.974 1.96 9.313 1.95 12 1.95Zm0 1.802c-2.67 0-2.987.01-4.042.059-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.048 1.055-.058 1.37-.058 4.041 0 2.67.01 2.987.058 4.042.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.042.058 2.67 0 2.987-.01 4.042-.058.975-.045 1.504-.207 1.857-.344.467-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041 0-2.67-.01-2.987-.058-4.042-.045-.975-.207-1.504-.344-1.857a3.097 3.097 0 0 0-.748-1.15 3.098 3.098 0 0 0-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.055-.048-1.37-.058-4.042-.058Zm0 3.097a4.646 4.646 0 1 0 0 9.292 4.646 4.646 0 0 0 0-9.292Zm0 7.49a2.844 2.844 0 1 1 0-5.688 2.844 2.844 0 0 1 0 5.688Zm2.997-8.152a1.199 1.199 0 1 1 0-2.398 1.199 1.199 0 0 1 0 2.398Z" clip-rule="evenodd" /></svg>
+                </a>
+                <a href="#" aria-label="YouTube" class="w-10 h-10 sm:w-12 sm:h-12 bg-zinc-900/80 border border-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:bg-red-600 hover:text-white transition-all hover:scale-110 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21.582 6.186a2.686 2.686 0 0 0-1.884-1.9c-1.662-.447-8.318-.447-8.318-.447s-6.656 0-8.318.447a2.686 2.686 0 0 0-1.884 1.9C.73 7.863.73 12 .73 12s0 4.137.448 5.814a2.686 2.686 0 0 0 1.884 1.9c1.662.447 8.318.447 8.318.447s6.656 0 8.318-.447a2.686 2.686 0 0 0 1.884-1.9C22.03 16.137 22.03 12 22.03 12s0-4.137-.448-5.814ZM9.213 15.086V8.914L14.526 12l-5.313 3.086Z" /></svg>
+                </a>
+                <a href="#" aria-label="Twitter" class="w-10 h-10 sm:w-12 sm:h-12 bg-zinc-900/80 border border-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:bg-blue-400 hover:text-white transition-all hover:scale-110 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                </a>
+                <a href="#" aria-label="LinkedIn" class="w-10 h-10 sm:w-12 sm:h-12 bg-zinc-900/80 border border-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:bg-blue-700 hover:text-white transition-all hover:scale-110 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clip-rule="evenodd" /></svg>
+                </a>
+            </div>
+
+            <div class="w-full max-w-2xl h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-1 sm:my-2"></div>
+
+            <div class="text-center flex flex-col gap-2">
+                <div class="flex justify-center gap-3 sm:gap-4 text-[10px] sm:text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1 sm:mb-2">
+                    <a href="events.html" class="hover:text-rose-400 transition">Events</a>
+                    <a href="gallery.html" class="hover:text-rose-400 transition">Gallery</a>
+                    <a href="contact.html" class="hover:text-rose-400 transition">Support</a>
+                </div>
+                <p class="text-[10px] sm:text-xs text-zinc-600 font-medium tracking-wide">© 2026 AUTUMN Fest · All rights reserved · College Campus</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Shared Scripts -->
+
+</body>
+</html>
