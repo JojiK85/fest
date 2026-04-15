@@ -534,10 +534,10 @@ const BASE_URL = 'https://autumn-fest-backend.onrender.com/api'; // Point this t
 
 const DatabaseAPI = {
     _data: {
-        users: [], accommodations: [], registrations: [], payments: [], gallery: [], sponsors: [], queries: [], logs: [], winners: []
+        users: [], accommodations: [], registrations: [], payments: [], gallery: [], sponsors: [], queries: [], logs: [], winners: [], events: []
     },
     _cacheTimeKey: 'autumn_fest_last_fetch',
-    _cacheDuration: 2 * 60 * 1000, // 2 minutes cache expiration
+    _cacheDuration: 2 * 60 * 1000, 
     
     // 🔥 NEW: 3-Second Timeout wrapper to prevent the profile page from hanging if Aiven is unreachable
     async _fetchWithTimeout(url, options = {}) {
@@ -560,11 +560,8 @@ const DatabaseAPI = {
             this._data = { ...this._data, ...JSON.parse(stored) };
         }
         
-        // 2. Determine if background fetch is needed
-        const lastFetch = parseInt(localStorage.getItem(this._cacheTimeKey) || "0");
-        const now = Date.now();
-        const cacheExpired = (now - lastFetch > this._cacheDuration);
-        const missingData = neededCollections.some(col => !this._data[col] || this._data[col].length === 0);
+        // Always include events because EVENTS_DATA relies on it globally
+        if (!neededCollections.includes('events')) neededCollections.push('events');
 
         const fetchTask = async () => {
             try {
@@ -580,17 +577,22 @@ const DatabaseAPI = {
                 await this.save(); 
                 localStorage.setItem(this._cacheTimeKey, Date.now().toString());
                 
-                // Fire an event in case the UI wants to refresh silently
+                // Repopulate dynamic events dictionary
+                window.EVENTS_DATA = groupEventsData(this._data.events || []);
+                if(typeof updateDynamicCalendar === 'function') updateDynamicCalendar();
                 window.dispatchEvent(new CustomEvent('db-updated'));
             } catch (e) {
                 console.warn("Backend offline or timed out. Relying strictly on local cache.");
             }
         };
 
-        if (missingData) {
-            await fetchTask(); // Must block because we completely lack essential data
-        } else if (cacheExpired) {
-            fetchTask(); // 🔥 RUN IN BACKGROUND: DO NOT AWAIT. This makes page load INSTANT.
+        // If basic data exists, load INSTANTLY and update silently in background to fix "taking more time to load"
+        if (stored && this._data.users && this._data.users.length > 0) {
+            window.EVENTS_DATA = groupEventsData(this._data.events || []);
+            if(typeof updateDynamicCalendar === 'function') updateDynamicCalendar();
+            fetchTask(); 
+        } else {
+            await fetchTask(); // Block only if absolutely zero data
         }
     },
     
@@ -2253,31 +2255,31 @@ function setupAccommodationForm() {
     wingSelect.classList.remove('opacity-50');
   }
   
-  // Transform UI to Multi-day checkboxes if it's currently a dropdown
+  // Transform UI to Multi-day checkboxes
   const durContainer = document.getElementById('roomDuration')?.parentElement;
   if (durContainer && !document.getElementById('day1Check')) {
       durContainer.innerHTML = `
-          <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-2">Select Days (₹300/day)</label>
-          <div class="flex flex-wrap gap-2 sm:gap-3 mb-2 w-full">
-              <label class="flex-1 min-w-[80px] flex items-center justify-center gap-2 text-white text-[10px] sm:text-xs bg-black/40 px-2 sm:px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-blue-500 transition select-none">
-                  <input type="checkbox" id="day1Check" value="Day 1" class="accom-day-check w-3 h-3 sm:w-4 sm:h-4 text-blue-500 rounded focus:ring-0 outline-none" onchange="calculateRoomCost()"> Day 1
+          <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-2">Select Days to Book (₹300/day)</label>
+          <div class="grid grid-cols-3 gap-2 sm:gap-3 mb-2 w-full">
+              <label class="flex flex-col items-center justify-center gap-1 sm:gap-2 text-white text-[10px] sm:text-xs bg-black/40 p-2 sm:p-3 rounded-xl border border-white/10 cursor-pointer hover:border-blue-500 transition select-none group">
+                  <input type="checkbox" id="day1Check" value="Day 1" class="accom-day-check w-4 h-4 text-blue-500 rounded focus:ring-0 outline-none" onchange="calculateRoomCost()"> 
+                  <span class="font-bold group-hover:text-blue-400">Day 1</span>
+                  <span class="text-[8px] text-zinc-500">Oct 20</span>
               </label>
-              <label class="flex-1 min-w-[80px] flex items-center justify-center gap-2 text-white text-[10px] sm:text-xs bg-black/40 px-2 sm:px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-blue-500 transition select-none">
-                  <input type="checkbox" id="day2Check" value="Day 2" class="accom-day-check w-3 h-3 sm:w-4 sm:h-4 text-blue-500 rounded focus:ring-0 outline-none" onchange="calculateRoomCost()"> Day 2
+              <label class="flex flex-col items-center justify-center gap-1 sm:gap-2 text-white text-[10px] sm:text-xs bg-black/40 p-2 sm:p-3 rounded-xl border border-white/10 cursor-pointer hover:border-blue-500 transition select-none group">
+                  <input type="checkbox" id="day2Check" value="Day 2" class="accom-day-check w-4 h-4 text-blue-500 rounded focus:ring-0 outline-none" onchange="calculateRoomCost()"> 
+                  <span class="font-bold group-hover:text-blue-400">Day 2</span>
+                  <span class="text-[8px] text-zinc-500">Oct 21</span>
               </label>
-              <label class="flex-1 min-w-[80px] flex items-center justify-center gap-2 text-white text-[10px] sm:text-xs bg-black/40 px-2 sm:px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-blue-500 transition select-none">
-                  <input type="checkbox" id="day3Check" value="Day 3" class="accom-day-check w-3 h-3 sm:w-4 sm:h-4 text-blue-500 rounded focus:ring-0 outline-none" onchange="calculateRoomCost()"> Day 3
+              <label class="flex flex-col items-center justify-center gap-1 sm:gap-2 text-white text-[10px] sm:text-xs bg-black/40 p-2 sm:p-3 rounded-xl border border-white/10 cursor-pointer hover:border-blue-500 transition select-none group">
+                  <input type="checkbox" id="day3Check" value="Day 3" class="accom-day-check w-4 h-4 text-blue-500 rounded focus:ring-0 outline-none" onchange="calculateRoomCost()"> 
+                  <span class="font-bold group-hover:text-blue-400">Day 3</span>
+                  <span class="text-[8px] text-zinc-500">Oct 22</span>
               </label>
           </div>
       `;
   }
   
-  // Hide roommate box for individual booking
-  const roommateBox = document.getElementById('roommateId');
-  if (roommateBox && roommateBox.parentElement) {
-      roommateBox.parentElement.style.display = 'none';
-  }
-
   calculateRoomCost();
 }
 
@@ -2291,11 +2293,29 @@ function calculateRoomCost() {
 }
 
 window.processRoomBooking = async function() {
+  const roommateId = document.getElementById('roommateId') ? document.getElementById('roommateId').value.trim() : "";
   const wing = document.getElementById('roomWing').value;
   const checks = document.querySelectorAll('.accom-day-check:checked');
   if (checks.length === 0) return showMessage("Please select at least one day for accommodation.");
   
   const selectedDays = Array.from(checks).map(c => c.value).join(', ');
+
+  if (roommateId) {
+    const users = await DatabaseAPI.get('users');
+    const friends = roommateId.split(',').map(s => s.trim());
+    for (let fId of friends) {
+        const friend = users.find(u => u.id === fId);
+        if (friend) {
+            if (friend.gender && friend.gender !== 'Not Specified' && friend.gender !== userProfile.gender) {
+                showMessage(`Cannot share room with ${fId} (Different gender).`);
+                return;
+            }
+        } else {
+            showMessage(`Account ID ${fId} not found.`);
+            return;
+        }
+    }
+  }
 
   const dbAccoms = await DatabaseAPI.get('accommodations');
   const wingBookings = dbAccoms.filter(a => a.wing === wing);
@@ -2309,11 +2329,11 @@ window.processRoomBooking = async function() {
   processRazorpayPayment(currentPendingFee, "Accommodation Booking Successful!", async (payId) => {
 
     userProfile.accommodation = {
-      type: "Individual", wing: wing, duration: selectedDays, roommate: "None", roomNumber: "Pending", payId: payId
+      type: roommateId ? "Shared" : "Individual", wing: wing, duration: selectedDays, roommate: roommateId || "None", roomNumber: "Pending", payId: payId
     };
 
     await DatabaseAPI.add('accommodations', {
-      id: userProfile.accountId, name: userProfile.name, wing: wing, duration: selectedDays, requested: "None", room: null, payId: payId
+      id: userProfile.accountId, name: userProfile.name, wing: wing, duration: selectedDays, requested: roommateId || "None", room: null, payId: payId
     });
 
     saveCache();
@@ -2326,18 +2346,41 @@ async function autoAssignRooms() {
   let dbAccoms = await DatabaseAPI.get('accommodations');
   
   let unassigned = dbAccoms.filter(b => !b.room);
+  let processed = new Set();
   let successCount = 0;
 
   for(let b of unassigned) {
-    let daysBooked = b.duration.split(',').map(d => d.trim());
+    if (processed.has(b.id)) continue;
+
+    let group = [b];
+    processed.add(b.id);
+
+    if (b.requested && b.requested !== "None") {
+      let friends = b.requested.split(',').map(s => s.trim());
+      friends.forEach(fId => {
+        if (group.length >= 3) return; 
+        let friendBooking = unassigned.find(fb => fb.id === fId && fb.wing === b.wing && !processed.has(fb.id));
+        if (friendBooking) {
+          group.push(friendBooking);
+          processed.add(friendBooking.id);
+        }
+      });
+    }
+
+    let daysBooked = new Set();
+    group.forEach(member => {
+        member.duration.split(',').forEach(d => daysBooked.add(d.trim()));
+    });
+    let allDays = Array.from(daysBooked);
+
     let w = b.wing;
     let roomAssigned = null;
 
     for (let r = 1; r <= maxRooms[w]; r++) {
       let canFit = true;
-      for (let day of daysBooked) {
+      for (let day of allDays) {
         let occupantsOnDay = dbAccoms.filter(a => a.room == r && a.wing == w && a.duration.includes(day));
-        if (occupantsOnDay.length >= 3) {
+        if (occupantsOnDay.length + group.length > 3) {
           canFit = false;
           break;
         }
@@ -2349,12 +2392,14 @@ async function autoAssignRooms() {
     }
 
     if (roomAssigned) {
-      b.room = roomAssigned;
-      successCount++;
-      await DatabaseAPI.update('accommodations', b.id, { room: roomAssigned });
-      if (b.id === userProfile.accountId && userProfile.accommodation) {
-        userProfile.accommodation.roomNumber = roomAssigned;
-        saveCache();
+      for(let member of group) {
+        member.room = roomAssigned;
+        successCount++;
+        await DatabaseAPI.update('accommodations', member.id, { room: roomAssigned });
+        if (member.id === userProfile.accountId && userProfile.accommodation) {
+          userProfile.accommodation.roomNumber = roomAssigned;
+          saveCache();
+        }
       }
     }
   }
@@ -2371,14 +2416,16 @@ window.renderAdminAccomTable = async function() {
   // Build daily matrix
   let dailyRooms = { 'Day 1': {}, 'Day 2': {}, 'Day 3': {} };
   let paidList = [];
+  let assignedCount = 0;
   
   dbAccoms.forEach(a => {
       paidList.push(a);
       if (a.room && a.duration) {
+          assignedCount++;
           ['Day 1', 'Day 2', 'Day 3'].forEach(day => {
               if (a.duration.includes(day)) {
                   if (!dailyRooms[day][a.room]) dailyRooms[day][a.room] = [];
-                  dailyRooms[day][a.room].push(a.id);
+                  dailyRooms[day][a.room].push(a);
               }
           });
       }
@@ -2395,19 +2442,21 @@ window.renderAdminAccomTable = async function() {
           <button onclick="autoAssignRooms()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold text-sm shadow-[0_0_15px_rgba(37,99,235,0.4)] transition shrink-0">Auto-Assign Pending</button>
       </div>
 
-      <div class="bg-black/30 p-4 sm:p-6 rounded-3xl border border-white/5 mb-6 shadow-xl w-full overflow-hidden">
-          <h4 class="text-white font-bold mb-4 flex items-center gap-2"><i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i> Paid Participants (${paidList.length})</h4>
-          <div class="max-h-52 overflow-y-auto w-full custom-scrollbar">
-              <div class="overflow-x-auto w-full">
-                  <table class="w-full text-left text-xs whitespace-nowrap min-w-[500px]">
-                      <thead class="text-zinc-500 uppercase tracking-widest text-[9px] border-b border-white/10 sticky top-0 bg-zinc-950/90 backdrop-blur-md">
-                          <tr><th class="pb-2">Account ID</th><th class="pb-2">Name</th><th class="pb-2">Days Booked</th><th class="pb-2">Room Status</th></tr>
-                      </thead>
-                      <tbody class="text-zinc-300 divide-y divide-white/5">
-                          ${paidList.map(p => `<tr class="hover:bg-white/5"><td class="py-3 text-cyan-400 font-mono">${p.id}</td><td class="py-3 text-white font-bold">${p.name}</td><td class="py-3 text-zinc-400">${p.duration}</td><td class="py-3 font-bold ${p.room?'text-emerald-400':'text-amber-400'}">${p.room?'Room '+p.room:'Pending Assignment'}</td></tr>`).join('')}
-                      </tbody>
-                  </table>
+      <!-- Two Records Summary -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div class="bg-blue-900/20 border border-blue-500/30 p-4 rounded-xl flex items-center justify-between">
+              <div>
+                  <p class="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-1">Total Paid Setup</p>
+                  <p class="text-2xl font-black text-white">${paidList.length} <span class="text-xs font-medium text-zinc-400">participants</span></p>
               </div>
+              <i data-lucide="credit-card" class="w-8 h-8 text-blue-500/50"></i>
+          </div>
+          <div class="bg-emerald-900/20 border border-emerald-500/30 p-4 rounded-xl flex items-center justify-between">
+              <div>
+                  <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">Total Assigned Setup</p>
+                  <p class="text-2xl font-black text-white">${assignedCount} <span class="text-xs font-medium text-zinc-400">participants mapped</span></p>
+              </div>
+              <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500/50"></i>
           </div>
       </div>
 
@@ -2422,14 +2471,19 @@ window.renderAdminAccomTable = async function() {
               </div>
           </div>
           
-          <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 overflow-y-auto max-h-72 custom-scrollbar p-1">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto max-h-[500px] custom-scrollbar p-1">
               ${Object.keys(dailyRooms[selectedDay]).length > 0 ? Object.entries(dailyRooms[selectedDay]).sort((a,b) => parseInt(a[0]) - parseInt(b[0])).map(([room, occupants]) => `
-                  <div class="bg-black/60 border ${occupants.length >= 3 ? 'border-red-500/30' : 'border-emerald-500/30'} p-3 rounded-xl text-center shadow-inner hover:bg-zinc-800 transition cursor-pointer group relative">
-                      <p class="text-xs sm:text-sm text-white font-black mb-1 group-hover:text-blue-400 transition">R-${room}</p>
-                      <div class="text-[9px] sm:text-[10px] text-cyan-400 font-mono space-y-0.5 tracking-wider truncate">
-                          ${occupants.map(occ => `<p>${occ.replace('AUT-26-','')}</p>`).join('')}
+                  <div class="bg-black/60 border ${occupants.length >= 3 ? 'border-red-500/30' : 'border-emerald-500/30'} p-4 rounded-xl shadow-inner hover:bg-zinc-800 transition relative">
+                      <p class="text-sm text-white font-black mb-3 border-b border-white/10 pb-2">Room ${room} <span class="text-[9px] font-normal text-zinc-500 float-right mt-1">${occupants[0].wing.toUpperCase()} WING</span></p>
+                      <div class="space-y-2">
+                          ${occupants.map(occ => `
+                              <div class="flex flex-col bg-white/5 p-2 rounded-lg border border-white/5">
+                                  <span class="text-xs text-white font-bold truncate">${occ.name}</span>
+                                  <span class="text-[9px] text-cyan-400 font-mono tracking-wider truncate">${occ.id}</span>
+                              </div>
+                          `).join('')}
                       </div>
-                      ${occupants.length >= 3 ? `<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,1)]"></span>` : ''}
+                      ${occupants.length >= 3 ? `<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,1)]" title="Room Full"></span>` : ''}
                   </div>
               `).join('') : '<p class="text-xs text-zinc-500 col-span-full italic">No rooms actively occupied for this day.</p>'}
           </div>
@@ -2439,152 +2493,152 @@ window.renderAdminAccomTable = async function() {
 }
 
 // ==========================================
-// 8. MODALS & FORMS
+// 9. PROFILE & REGISTRATION
 // ==========================================
-// 10. GALLERY & UPLOADS
-// ==========================================
-function searchGallery() {
-  const query = document.getElementById('gallery-search').value.toLowerCase();
-  const items = document.querySelectorAll('.gallery-item');
-  items.forEach(item => {
-    const tags = item.getAttribute('data-tags') || '';
-    if (tags.toLowerCase().includes(query)) {
-      item.style.display = '';
-    } else {
-      item.style.display = 'none';
-    }
-  });
-}
-
-function handleGalleryTap(item, event) {
-  if (event.target.closest('button')) return;
-
-  const now = new Date().getTime();
-  const lastTap = item.dataset.lastTap || 0;
-  const tapDelay = 300; 
-
-  if (now - lastTap < tapDelay && now - lastTap > 0) {
-    item.dataset.lastTap = 0;
-    const likeBtn = item.querySelector('button');
-    if (likeBtn) {
-      toggleLike(likeBtn, true);
-      showBigHeart(item);
-    }
-  } else {
-    item.dataset.lastTap = now;
-  }
-}
-
-function showBigHeart(container) {
-  const heart = document.createElement('div');
-  heart.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:50;animation:popHeart .8s ease-out forwards;font-size:72px;text-shadow:0 0 20px rgba(0,0,0,0.5);';
-  heart.textContent = '❤️';
-  container.appendChild(heart);
-  setTimeout(() => heart.remove(), 800);
-}
-
-function toggleLike(btn, fromDoubleTap = false) {
-  if (!isLoggedIn) { showMessage("Please sign in to like moments."); return; }
-  const icon = btn.querySelector('svg');
-  const countSpan = btn.querySelector('.like-count');
-  let count = parseInt(countSpan.innerText);
-
-  const isLiked = icon.classList.contains('text-rose-500');
-
-  if (fromDoubleTap && isLiked) return;
-
-  if (isLiked) {
-    icon.classList.remove('fill-rose-500', 'text-rose-500');
-    count--;
-  } else {
-    icon.classList.add('fill-rose-500', 'text-rose-500');
-    count++;
-    icon.style.transform = 'scale(1.5)';
-    setTimeout(() => icon.style.transform = 'scale(1)', 200);
-  }
-  countSpan.innerText = count;
-}
-
-function showUploadModal() {
-  if (!isLoggedIn) { showMessage("Sign in to upload photos."); return; }
-  document.getElementById('upload-event-name').value = '';
-  document.getElementById('upload-context').value = '';
-  toggleGalleryUploadType('file');
-  openModal('uploadModal');
-}
-
-// Drive Upload Utility
-async function uploadFileToDrive(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-        const res = await fetch(`${BASE_URL}/upload`, { method: 'POST', body: formData });
-        const data = await res.json();
-        return data.url;
-    } catch (e) {
-        console.error("Upload failed", e);
-        return null;
-    }
-}
-
-function toggleGalleryUploadType(type) {
-    galleryUploadType = type;
-    const fileBtn = document.getElementById('btn-gal-file');
-    const linkBtn = document.getElementById('btn-gal-link');
-    const fileContainer = document.getElementById('gal-file-container');
-    const linkInput = document.getElementById('galLink');
+async function renderProfile() {
+    const container = document.getElementById('profile-container');
+    if (!container) return;
     
-    if (type === 'file') {
-        fileBtn.className = "flex-1 py-1.5 rounded bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider transition";
-        linkBtn.className = "flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700";
-        fileContainer.classList.remove('hidden');
-        linkInput.classList.add('hidden');
-    } else {
-        linkBtn.className = "flex-1 py-1.5 rounded bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider transition";
-        fileBtn.className = "flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700";
-        linkInput.classList.remove('hidden');
-        fileContainer.classList.add('hidden');
-    }
-}
-
-function toggleSponsorInput(type) {
-    sponsorUploadType = type;
-    const fileBtn = document.getElementById('btn-spon-file');
-    const linkBtn = document.getElementById('btn-spon-link');
-    const fileContainer = document.getElementById('spon-file-container');
-    const linkInput = document.getElementById('sponLink');
+    const users = await DatabaseAPI.get('users');
+    const me = users.find(u => u.id === userProfile.accountId);
+    if(me) await populateUserProfile(me);
     
-    if (type === 'file') {
-        fileBtn.className = "flex-1 py-1.5 rounded bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider transition";
-        linkBtn.className = "flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700";
-        fileContainer.classList.remove('hidden');
-        linkInput.classList.add('hidden');
-        linkInput.removeAttribute('required');
-    } else {
-        linkBtn.className = "flex-1 py-1.5 rounded bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider transition";
-        fileBtn.className = "flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700";
-        linkInput.classList.remove('hidden');
-        linkInput.setAttribute('required', 'true');
-        fileContainer.classList.add('hidden');
+    // Dynamically fetch newest accommodation status so the UI directly picks up assigned room numbers
+    const accoms = await DatabaseAPI.get('accommodations');
+    const myAccom = accoms.find(a => a.id === userProfile.accountId);
+    if(myAccom) {
+        userProfile.accommodation = {
+            type: myAccom.requested && myAccom.requested !== "None" ? "Shared" : "Individual",
+            wing: myAccom.wing,
+            duration: myAccom.duration,
+            roommate: myAccom.requested || "None",
+            roomNumber: myAccom.room || "Pending",
+            payId: myAccom.payId
+        };
     }
+    
+    const confirmed = userProfile.registrations.filter(r => r.payment === 'Success' || r.payment === 'Team Paid');
+    const unfinished = userProfile.registrations.filter(r => r.payment === 'Incomplete');
+
+    let unfinishedHTML = unfinished.length > 0 ? unfinished.map(r => {
+      const event = Object.values(EVENTS_DATA).flat().find(e => e.id === r.eventId);
+      if(!event) return '';
+      const min = event.team.includes('-') ? parseInt(event.team.split('-')[0]) : parseInt(event.team);
+      const needsMembers = r.teamCode && (r.members.length + 1) < min;
+      return `
+          <div class="bg-zinc-900 border border-amber-500/20 p-4 sm:p-5 rounded-2xl flex flex-col gap-3 shadow-xl hover:border-amber-500/40 transition-all">
+              <div class="flex justify-between items-start">
+                  <div>
+                      <h4 class="font-bold text-amber-500 text-sm sm:text-base break-words w-full">${event.name}</h4>
+                      <p class="text-[8px] sm:text-[9px] text-zinc-500 uppercase mt-1 font-bold">Alert: ${needsMembers ? 'Team members need to be updated' : 'Payment not finished'}</p>
+                  </div>
+                  <span class="text-[8px] sm:text-[9px] font-black bg-amber-500/10 px-1.5 sm:px-2 py-0.5 rounded text-amber-500 uppercase border border-amber-500/20 tracking-widest shrink-0">PENDING</span>
+              </div>
+              <p class="text-[9px] sm:text-[10px] font-mono text-cyan-400 bg-black/40 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-white/5 tracking-widest select-all break-all">${r.teamCode || 'INDIVIDUAL ENTRY'}</p>
+              <div class="flex gap-2 mt-1">
+                  <button onclick="resumeRegistration('${r.eventId}')" class="flex-1 py-2 sm:py-2.5 bg-amber-600 hover:bg-amber-500 text-amber-950 font-black rounded-lg transition text-[9px] sm:text-[10px] uppercase tracking-widest shadow-lg truncate">Complete Process</button>
+                  <button onclick="dissolveTeam('${r.eventId}')" class="px-3 sm:px-4 py-2 sm:py-2.5 bg-red-900/30 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/30 font-black rounded-lg transition shadow-lg shrink-0"><i data-lucide="trash-2" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
+              </div>
+          </div>`;
+    }).join('') : `<div class="p-6 sm:p-8 text-center text-zinc-600 text-[10px] sm:text-xs italic border border-dashed border-zinc-800 rounded-2xl w-full">No pending registrations.</div>`;
+
+    let confirmedHTML = confirmed.length > 0 ? confirmed.map(r => {
+      const event = Object.values(EVENTS_DATA).flat().find(e => e.id === r.eventId);
+      if(!event) return '';
+      const memText = r.members && r.members.length > 0 ? 'You, ' + r.members.join(', ') : 'Individual';
+      const isLeader = r.leader === userProfile.accountId;
+      const roleText = isLeader ? "Team Leader" : "Team Member";
+
+      return `
+          <div class="bg-zinc-900/50 border border-emerald-500/10 p-3 sm:p-4 rounded-2xl flex items-start justify-between gap-3 sm:gap-4 hover:border-emerald-500/30 transition-all shadow-lg cursor-pointer group" onclick="showTeamQr('${r.eventId}')">
+              <div class="flex items-start gap-3 sm:gap-4 min-w-0">
+                  <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20 shrink-0 mt-1 group-hover:scale-110 transition"><i data-lucide="qr-code" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>
+                  <div class="min-w-0">
+                      <h4 class="font-bold text-white text-xs sm:text-sm group-hover:text-cyan-400 transition truncate break-words">${event.name}</h4>
+                      <p class="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5 truncate">${event.date} • ${event.venue}</p>
+                      <p class="text-[9px] sm:text-[10px] text-cyan-400 uppercase tracking-widest mt-1 sm:mt-1.5 font-bold truncate">Team: ${r.teamName || 'Individual'} <span class="text-zinc-500 font-medium">(${roleText})</span></p>
+                      <p class="text-[8px] sm:text-[10px] text-zinc-400 uppercase tracking-widest mt-0.5 truncate">Members: ${memText}</p>
+                  </div>
+              </div>
+              ${isLeader ? `<button onclick="event.stopPropagation(); dissolveTeam('${r.eventId}')" class="text-zinc-600 hover:text-red-500 p-1.5 sm:p-2 transition-colors z-10 relative shrink-0"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+          </div>`;
+    }).join('') : `<div class="p-6 sm:p-8 text-center text-zinc-600 text-[10px] sm:text-xs italic border border-dashed border-zinc-800 rounded-2xl w-full">No events registered.</div>`;
+
+    let paymentsHTML = userProfile.payments.length > 0 ? userProfile.payments.map(p => `
+        <div class="flex justify-between items-center p-2.5 sm:p-3 bg-black/40 border border-white/5 rounded-xl gap-2">
+            <div class="min-w-0">
+                <p class="text-white text-[10px] sm:text-xs font-mono truncate">${p.id}</p>
+                <p class="text-[8px] sm:text-[10px] text-zinc-500 truncate">${p.timestamp}</p>
+            </div>
+            <div class="text-right shrink-0">
+                <p class="text-emerald-400 font-bold text-xs sm:text-sm">₹${p.amount}</p>
+                <p class="text-[8px] sm:text-[9px] text-emerald-500 uppercase tracking-widest">${p.status}</p>
+            </div>
+        </div>
+    `).join('') : `<p class="text-zinc-600 text-[10px] sm:text-xs italic text-center py-4">No payments recorded.</p>`;
+
+    let accomHTML = userProfile.accommodation ? `
+        <div class="bg-black/40 p-4 sm:p-5 rounded-2xl border border-white/5 shadow-inner">
+            <div class="flex justify-between items-start mb-2 gap-2">
+                <p class="text-white font-bold capitalize text-xs sm:text-sm break-words flex-1">${userProfile.accommodation.type} Occupancy</p>
+                <span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-[9px] sm:text-[10px] uppercase tracking-wider font-bold shrink-0">Confirmed</span>
+            </div>
+            <p class="text-[10px] sm:text-xs text-zinc-400 capitalize mb-1 truncate">${userProfile.accommodation.wing} Wing • Duration: ${userProfile.accommodation.duration}</p>
+            <p class="text-[10px] sm:text-xs text-emerald-400 font-bold mt-2 truncate">Room Assigned: ${userProfile.accommodation.roomNumber}</p>
+            <p class="text-[10px] sm:text-xs text-zinc-500 mt-2 mb-3 p-2 bg-zinc-900 rounded-lg border border-zinc-800 font-mono break-all">Requested Friends: <span class="text-zinc-300">${userProfile.accommodation.roommate}</span></p>
+            <button onclick="showAccomQr()" class="w-full py-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded-lg text-[10px] sm:text-xs font-bold transition flex items-center justify-center gap-2"><i data-lucide="qr-code" class="w-3 h-3 sm:w-4 sm:h-4"></i> View Entry QR</button>
+        </div>` : `<p class="text-zinc-600 text-[10px] sm:text-xs italic text-center py-4">No accommodation booked.</p>`;
+
+    const profileQrData = encodeURIComponent(`https://autumnfest.in/public.html?id=${userProfile.accountId}`);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${profileQrData}&color=f43f5e&bgcolor=000000`;
+
+    container.innerHTML = `
+        <div class="lg:col-span-1 rounded-3xl p-5 sm:p-6 md:p-8 bg-zinc-900/60 backdrop-blur-xl border border-white/5 relative overflow-hidden flex flex-col items-center text-center h-fit lg:sticky lg:top-28 shadow-2xl">
+            <div class="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full border-4 border-zinc-800 overflow-hidden mb-4 sm:mb-6 shadow-2xl bg-zinc-950 flex justify-center items-center text-3xl sm:text-5xl shrink-0">
+                <img src="${userProfile.photo}" class="w-full h-full object-cover">
+            </div>
+            <h2 class="text-lg sm:text-xl md:text-2xl font-bold text-white mb-1 break-words w-full" id="profile-name">${userProfile.name}</h2>
+            <span class="px-2 sm:px-3 py-1 bg-rose-500/20 text-rose-400 rounded-full text-[9px] sm:text-[10px] font-semibold tracking-wider border border-rose-500/30 mb-4 uppercase inline-block">ACTIVE MEMBER</span>
+            <button onclick="openProfileEdit()" class="mb-6 sm:mb-8 px-3 sm:px-4 py-1 sm:py-1.5 border border-zinc-700 text-[10px] sm:text-xs text-zinc-300 hover:text-white hover:border-white rounded-lg transition inline-block"><i data-lucide="edit-2" class="w-3 h-3 inline"></i> Edit Profile</button>
+            
+            <div class="w-full bg-black/50 border border-white/10 rounded-2xl p-4 mb-6 flex flex-col items-center shadow-inner">
+                <p class="text-[9px] sm:text-[10px] text-zinc-400 uppercase tracking-widest font-bold mb-3">Your Fest ID</p>
+                <div class="w-24 h-24 sm:w-32 sm:h-32 bg-white rounded-xl overflow-hidden mb-3 p-2 shrink-0">
+                    <img src="${qrUrl}" alt="QR Code" class="w-full h-full mix-blend-multiply">
+                </div>
+                <p class="font-mono text-cyan-400 text-xs sm:text-sm tracking-wider font-bold select-all break-all">${userProfile.accountId}</p>
+            </div>
+
+            <div class="w-full space-y-2 sm:space-y-3 text-left">
+                <div class="bg-black/30 p-3 sm:p-4 rounded-2xl border border-white/5 shadow-inner"><p class="text-[9px] sm:text-[10px] text-zinc-500 font-bold tracking-widest uppercase mb-1">Contact</p><p class="text-xs sm:text-sm font-medium text-zinc-300 break-words w-full">${userProfile.email}<br>${userProfile.phone || 'N/A'}</p></div>
+                <div class="bg-black/30 p-3 sm:p-4 rounded-2xl border border-white/5 shadow-inner"><p class="text-[9px] sm:text-[10px] text-zinc-500 font-bold tracking-widest uppercase mb-1">Details</p><p class="text-xs sm:text-sm font-medium text-zinc-300 break-words w-full">${userProfile.college}<br>${userProfile.gender}</p></div>
+            </div>
+        </div>
+        <div class="lg:col-span-2 flex flex-col gap-6 sm:gap-8 min-w-0">
+            <div class="rounded-3xl p-5 sm:p-6 md:p-8 bg-zinc-900/40 backdrop-blur-md border border-amber-500/20 flex flex-col shadow-2xl min-w-0">
+                <h3 class="text-base sm:text-lg font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3 break-words w-full"><i data-lucide="alert-circle" class="text-amber-500 w-4 h-4 sm:w-5 sm:h-5 shrink-0"></i> Unfinished Processes</h3>
+                <div class="grid grid-cols-1 gap-4">${unfinishedHTML}</div>
+            </div>
+            <div class="rounded-3xl p-5 sm:p-6 md:p-8 bg-zinc-900/40 backdrop-blur-md border border-rose-500/20 flex flex-col shadow-2xl min-w-0">
+                <h3 class="text-base sm:text-lg font-bold text-white mb-1 sm:mb-2 flex items-center gap-2 sm:gap-3 break-words w-full"><i data-lucide="calendar" class="text-rose-500 w-4 h-4 sm:w-5 sm:h-5 shrink-0"></i> Registered Events & My Teams</h3>
+                <p class="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest mb-3 sm:mb-4 break-words w-full">Click an event to view entry QR</p>
+                <div class="space-y-3 sm:space-y-4">${confirmedHTML}</div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+                <div class="rounded-3xl p-5 sm:p-6 md:p-8 bg-zinc-900/40 backdrop-blur-md border border-white/5 flex flex-col shadow-2xl min-w-0">
+                    <h3 class="text-base sm:text-lg font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3 break-words w-full"><i data-lucide="home" class="text-blue-400 w-4 h-4 sm:w-5 sm:h-5 shrink-0"></i> Stay Details</h3>
+                    <div class="space-y-3">${accomHTML}</div>
+                </div>
+                <div class="rounded-3xl p-5 sm:p-6 md:p-8 bg-zinc-900/40 backdrop-blur-md border border-white/5 flex flex-col shadow-2xl min-w-0">
+                    <h3 class="text-base sm:text-lg font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3 break-words w-full"><i data-lucide="credit-card" class="text-emerald-400 w-4 h-4 sm:w-5 sm:h-5 shrink-0"></i> Transactions</h3>
+                    <div class="space-y-3">${paymentsHTML}</div>
+                </div>
+            </div>
+        </div>`;
+    renderIcons();
 }
 
-async function submitGalleryUpload() {
-  const evName = document.getElementById('upload-event-name').value || "College Fest";
-  const context = document.getElementById('upload-context').value || "Amazing moment!";
-  
-  let url = ''; 
-  
-  if (galleryUploadType === 'file') {
-      const fileInput = document.getElementById('galFile');
-      if(fileInput.files.length > 0) {
-          showMessage('Uploading image to Google Drive... Please wait.');
-          url = await uploadFileToDrive(fileInput.files[0]);
-          if (!url) { showMessage("Upload to Drive failed."); return; }
-      } else {
-          showMessage('Please select a file.'); return;
-      }
-  } else {
+function openProfileEdit() {
       const linkInput = document.getElementById('galLink').value;
       if(!linkInput) { showMessage('Please provide a link.'); return; }
       url = linkInput; 
@@ -2931,35 +2985,39 @@ async function renderAdminDashboard() {
 }
 
 window.renderAdminEventsList = function(type = 'events') {
-    const btnEv = document.getElementById('toggle-ev-btn');
-    const btnFest = document.getElementById('toggle-fest-btn');
-    const addBtn = document.querySelector('#admin-events-tab button[onclick^="openAdminEventModal"]');
+    const tab = document.getElementById('admin-events-tab');
+    if(!tab) return;
+    
+    // Completely re-build the table area to ensure Add Buttons work
+    let contentHtml = `
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+            <div>
+                <h3 class="text-xl font-bold text-white">Event Management</h3>
+                <p class="text-xs text-zinc-400 mt-1">Create, edit, and manage events and festivals.</p>
+            </div>
+            <div class="flex gap-2 w-full sm:w-auto">
+                <button onclick="renderAdminEventsList('events')" class="flex-1 sm:flex-none px-6 py-2 ${type === 'events' ? 'bg-rose-600 text-white' : 'bg-zinc-800 text-zinc-400'} rounded-lg text-xs font-bold transition shadow">Events</button>
+                <button onclick="renderAdminEventsList('festivals')" class="flex-1 sm:flex-none px-6 py-2 ${type === 'festivals' ? 'bg-rose-600 text-white' : 'bg-zinc-800 text-zinc-400'} rounded-lg text-xs font-bold transition shadow">Festivals</button>
+            </div>
+            <button onclick="openAdminEventModal('${type === 'events' ? 'entrepreneurial' : 'festivals'}')" class="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition shadow flex items-center justify-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> Add ${type === 'events' ? 'Event' : 'Festival'}
+            </button>
+        </div>
+        <div class="bg-black/40 border border-white/5 rounded-2xl overflow-hidden overflow-x-auto w-full">
+            <table class="w-full text-left text-xs sm:text-sm whitespace-nowrap min-w-[600px]">
+                <thead class="bg-white/5 text-zinc-400 uppercase tracking-wider text-[9px] sm:text-[10px] border-b border-white/10">
+                    <tr><th class="p-3 sm:p-4 font-bold">Name</th><th class="p-3 sm:p-4 font-bold">Category</th><th class="p-3 sm:p-4 font-bold">Team</th><th class="p-3 sm:p-4 font-bold">Fee</th><th class="p-3 sm:p-4 font-bold">Status</th><th class="p-3 sm:p-4 font-bold text-right">Actions</th></tr>
+                </thead>
+                <tbody id="admin-events-table" class="divide-y divide-white/5 text-zinc-200">
+    `;
 
-    if(btnEv && btnFest) {
-        if (type === 'events') {
-            btnEv.className = "flex-1 px-6 py-2 bg-rose-600 text-white rounded-lg text-xs font-bold transition shadow";
-            btnFest.className = "flex-1 px-6 py-2 bg-zinc-800 text-zinc-400 hover:text-white rounded-lg text-xs font-bold transition shadow";
-            if (addBtn) {
-                addBtn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Add Event';
-                addBtn.setAttribute('onclick', "openAdminEventModal('entrepreneurial')");
-            }
-        } else {
-            btnFest.className = "flex-1 px-6 py-2 bg-rose-600 text-white rounded-lg text-xs font-bold transition shadow";
-            btnEv.className = "flex-1 px-6 py-2 bg-zinc-800 text-zinc-400 hover:text-white rounded-lg text-xs font-bold transition shadow";
-            if (addBtn) {
-                addBtn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Add Festival';
-                addBtn.setAttribute('onclick', "openAdminEventModal('festivals')");
-            }
-        }
-    }
-
-    let html = '';
+    let rowsHtml = '';
     for (const [catKey, events] of Object.entries(EVENTS_DATA)) {
         events.forEach(ev => {
             if (type === 'events' && catKey === 'festivals') return;
             if (type === 'festivals' && catKey !== 'festivals') return;
 
-            html += `
+            rowsHtml += `
                 <tr class="hover:bg-white/5 transition-colors border-b border-white/5">
                     <td class="p-3 sm:p-4 font-bold text-white text-xs sm:text-sm">${ev.name}</td>
                     <td class="p-3 sm:p-4 text-[10px] sm:text-xs uppercase tracking-wider text-zinc-400">${catKey}</td>
@@ -2978,8 +3036,9 @@ window.renderAdminEventsList = function(type = 'events') {
                 </tr>`;
         });
     }
-    const table = document.getElementById('admin-events-table');
-    if (table) table.innerHTML = html;
+    
+    contentHtml += rowsHtml + `</tbody></table></div>`;
+    tab.innerHTML = contentHtml;
     renderIcons();
 };
 
@@ -4037,7 +4096,7 @@ window.openGalleryDetails = function(id) {
         openModal('adminDetailsModal');
         renderIcons();
     });
-};
+}
 
 window.approveGalleryImage = async function(id) {
     const allGallery = await DatabaseAPI.get('gallery');
@@ -4067,7 +4126,7 @@ window.approveGalleryImage = async function(id) {
         renderAdminDashboard();
         showMessage(`Image approved! Email sent.`);
     }
-};
+}
 
 window.rejectGalleryImage = async function(id) {
     const allGallery = await DatabaseAPI.get('gallery');
@@ -4095,4 +4154,4 @@ window.rejectGalleryImage = async function(id) {
 
     renderAdminDashboard();
     showMessage(`Image rejected. Email sent.`);
-};
+}
