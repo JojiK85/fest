@@ -211,7 +211,16 @@ def get_gspread_client():
     if _gspread_client is None:
         try:
             scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-            creds = ServiceAccountCredentials.from_json_keyfile_name("google_creds.json", scope)
+            
+            # CHECK: If running on Render, use Environment Variable
+            creds_json = os.getenv("GOOGLE_CREDS_JSON")
+            if creds_json:
+                creds_dict = json.loads(creds_json)
+                creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+            else:
+                # Fallback for local testing
+                creds = ServiceAccountCredentials.from_json_keyfile_name("google_creds.json", scope)
+                
             _gspread_client = gspread.authorize(creds)
             print("Google Sheets API Authenticated.")
         except Exception as e:
@@ -470,7 +479,12 @@ def delete_document(collection, doc_id):
 # ==========================================
 def get_drive_service():
     scope = ["https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("google_creds.json", scope)
+    creds_json = os.getenv("GOOGLE_CREDS_JSON")
+    if creds_json:
+        creds_dict = json.loads(creds_json)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    else:
+        creds = ServiceAccountCredentials.from_json_keyfile_name("google_creds.json", scope)
     return build('drive', 'v3', credentials=creds)
 
 @app.route('/api/upload', methods=['POST'])
