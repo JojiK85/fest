@@ -530,7 +530,7 @@ function injectSharedComponents() {
 // ==========================================
 // 2. DATABASE API (Hybrid: Memory Cache + Flask Backend)
 // ==========================================
-const BASE_URL = 'http://localhost:5000/api'; // Point this to your live Flask Server URL when deploying
+const BASE_URL = 'https://autumn-fest-backend.onrender.com/api'; // Point this to your live Flask Server URL when deploying
 
 const DatabaseAPI = {
     _data: {
