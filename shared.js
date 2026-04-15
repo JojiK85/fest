@@ -1989,28 +1989,39 @@ function previewProfilePhoto(event) {
     const reader = new FileReader();
     reader.onload = function (e) {
       document.getElementById('editPhotoPreview').src = e.target.result;
-      userProfile.tempPhoto = e.target.result;
     }
     reader.readAsDataURL(file);
   }
 }
 
 async function saveProfile() {
+  const fileInput = document.getElementById('photoUpload');
+  let finalPhotoUrl = userProfile.photo;
+
+  if (fileInput && fileInput.files.length > 0) {
+      showMessage("Uploading profile picture to Drive... Please wait.");
+      try {
+          finalPhotoUrl = await uploadFileToDrive(fileInput.files[0]);
+          if(!finalPhotoUrl) throw new Error("Upload failed");
+      } catch (e) {
+          showMessage("Photo upload failed. Changes not saved.");
+          return;
+      }
+  }
+
   userProfile.name = document.getElementById('editName').value;
   userProfile.phone = document.getElementById('editPhone').value;
   userProfile.gender = document.getElementById('editGender').value;
   userProfile.college = document.getElementById('editCollege').value;
-  if (userProfile.tempPhoto) {
-    userProfile.photo = userProfile.tempPhoto;
-  }
+  userProfile.photo = finalPhotoUrl;
   
   await DatabaseAPI.update('users', userProfile.accountId, { 
-      name: userProfile.name, phone: userProfile.phone, gender: userProfile.gender, college: userProfile.college
+      name: userProfile.name, phone: userProfile.phone, gender: userProfile.gender, college: userProfile.college, photo: finalPhotoUrl
   });
   
   closeModal('profileEditModal');
   saveCache();
-  showMessage("Profile Updated!");
+  showMessage("Profile Updated Successfully!");
   renderProfile();
 }
 
@@ -2196,239 +2207,239 @@ window.processJoinTeam = async function() {
 
     let maxMems = 1;
     if (targetEvent.team.includes('-')) {
-        maxMems = parseInt(targetEvent.team.split('-')[1]);
-    } else {
-        maxMems = parseInt(targetEvent.team);
-    }
+function closeCategory() {
+  document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active-category'));
+  const wrapper = document.getElementById('events-list-wrapper');
+  const placeholder = document.getElementById('events-placeholder');
+  wrapper.classList.remove('opacity-100');
+  wrapper.classList.add('opacity-0');
+  setTimeout(() => {
+    wrapper.classList.remove('flex');
+    wrapper.classList.add('hidden');
+    placeholder.classList.remove('hidden');
+    placeholder.classList.add('flex');
+    setTimeout(() => { 
+        placeholder.classList.remove('opacity-0'); 
+        placeholder.classList.add('opacity-100'); 
+        
+        if(window.innerWidth < 1024) {
+            setTimeout(() => {
+                const orbit = document.querySelector('.orbit-container');
+                if(orbit) {
+                    orbit.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 50);
+        }
+    }, 10);
+  }, 300);
+}
 
-    if (teamReg.members.length + 1 >= maxMems) {
-        showMessage("This team is already full!");
-        return;
-    }
-
-    // Add member to team in Database
-    teamReg.members.push(userProfile.accountId);
-    await DatabaseAPI.update('registrations', teamReg.id, { members: teamReg.members });
-
-    // Local profile update to trigger rendering
-    userProfile.registrations.push({
-        eventId: teamReg.eventId,
-        teamName: teamReg.teamName,
-        teamCode: teamReg.teamCode,
-        members: teamReg.members,
-        payment: 'Team Paid' // Member relies on the leader's payment
-    });
-    saveCache();
-
-    closeModal('registerModal');
-    showMessage(`Successfully joined ${teamReg.teamName}!`);
-    if (window.location.pathname.includes('profile')) {
-        renderProfile();
-    } else {
-        navigate('profile');
-    }
-};
-
-function renderIndividualForm() {
-  document.getElementById('regFormContainer').innerHTML = `
-      <div class="flex flex-col items-center justify-start py-8 sm:py-10 text-center animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow min-w-0">
-          <div class="w-20 h-20 sm:w-24 sm:h-24 bg-blue-500/10 rounded-full flex items-center justify-center mb-6 shrink-0 shadow-inner">
-              <i data-lucide="user" class="w-10 h-10 sm:w-12 sm:h-12 text-blue-500"></i>
+// ==========================================
+// 7. ACCOMMODATION
+// ==========================================
+function setupAccommodationForm() {
+  const wingSelect = document.getElementById('roomWing');
+  if(!wingSelect) return;
+  if (userProfile.gender === 'Female') {
+    wingSelect.value = 'female';
+    wingSelect.disabled = true;
+    wingSelect.classList.add('opacity-50');
+  } else if (userProfile.gender === 'Male') {
+    wingSelect.value = 'male';
+    wingSelect.disabled = true;
+    wingSelect.classList.add('opacity-50');
+  } else {
+    wingSelect.disabled = false;
+    wingSelect.classList.remove('opacity-50');
+  }
+  
+  // Transform UI to Multi-day checkboxes if it's currently a dropdown
+  const durContainer = document.getElementById('roomDuration')?.parentElement;
+  if (durContainer && !document.getElementById('day1Check')) {
+      durContainer.innerHTML = `
+          <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-2">Select Days (₹300/day)</label>
+          <div class="flex flex-wrap gap-2 sm:gap-3 mb-2 w-full">
+              <label class="flex-1 min-w-[80px] flex items-center justify-center gap-2 text-white text-[10px] sm:text-xs bg-black/40 px-2 sm:px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-blue-500 transition select-none">
+                  <input type="checkbox" id="day1Check" value="Day 1" class="accom-day-check w-3 h-3 sm:w-4 sm:h-4 text-blue-500 rounded focus:ring-0 outline-none" onchange="calculateRoomCost()"> Day 1
+              </label>
+              <label class="flex-1 min-w-[80px] flex items-center justify-center gap-2 text-white text-[10px] sm:text-xs bg-black/40 px-2 sm:px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-blue-500 transition select-none">
+                  <input type="checkbox" id="day2Check" value="Day 2" class="accom-day-check w-3 h-3 sm:w-4 sm:h-4 text-blue-500 rounded focus:ring-0 outline-none" onchange="calculateRoomCost()"> Day 2
+              </label>
+              <label class="flex-1 min-w-[80px] flex items-center justify-center gap-2 text-white text-[10px] sm:text-xs bg-black/40 px-2 sm:px-3 py-2 rounded-lg border border-white/10 cursor-pointer hover:border-blue-500 transition select-none">
+                  <input type="checkbox" id="day3Check" value="Day 3" class="accom-day-check w-3 h-3 sm:w-4 sm:h-4 text-blue-500 rounded focus:ring-0 outline-none" onchange="calculateRoomCost()"> Day 3
+              </label>
           </div>
-          <h4 class="text-2xl sm:text-3xl font-black text-white mb-3 tracking-wide font-sans w-full break-words">Individual Registration</h4>
-          <p class="text-xs sm:text-sm text-zinc-400 max-w-sm mx-auto break-words w-full">You are registering as an individual. Proceed to pay the fee and confirm your spot.</p>
-      </div>`;
-  document.getElementById('regFooterBtns').innerHTML = `<button onclick="processPayment()" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(37,99,235,0.4)] text-center shrink-0">Pay Now</button>`;
-  renderIcons();
-}
-
-window.addTeamMemberField = function(pushToArray = true, initialValue = "") {
-  if (teamMemberCount >= currentRegMax) { showMessage(`Max size ${currentRegMax}.`); return; }
-  teamMemberCount++;
-
-  const id = `member-${teamMemberCount}`;
-  const displayVal = initialValue !== "Pending" ? initialValue : "";
-
-  const div = document.createElement('div');
-  div.id = id; div.className = 'flex items-center gap-2 sm:gap-3 animate-[fadeInSlide_0.2s_ease-out] w-full min-w-0';
-  div.innerHTML = `
-      <input type="text" id="input-${id}" placeholder="Email or ID" value="${displayVal}" class="team-member-input flex-grow min-w-0 py-3 sm:py-4 bg-black/40 border border-white/10 rounded-xl text-white px-4 text-xs sm:text-sm focus:outline-none focus:border-rose-500 shadow-inner" required onchange="saveTeamMembers()">
-      <button type="button" onclick="sendTeamInvite('input-${id}')" class="w-12 h-12 sm:w-[52px] sm:h-[52px] bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-xl flex items-center justify-center shrink-0 transition" title="Send Email Invite"><i data-lucide="mail" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
-      <button type="button" onclick="removeTeamMemberField('${id}')" class="w-12 h-12 sm:w-[52px] sm:h-[52px] bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl flex items-center justify-center shrink-0 transition"><i data-lucide="trash-2" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>`;
-  document.getElementById('teamMembersList').appendChild(div);
-
-  if (pushToArray) {
-    saveTeamMembers();
+      `;
   }
-  window.updateMemberCount();
-  renderIcons();
-}
-
-window.updateMemberCount = function() {
-  const memCountText = document.getElementById('memCountText');
-  if(memCountText) memCountText.innerText = teamMemberCount;
-  const addBtn = document.getElementById('addMemberBtn');
-  if (addBtn) addBtn.style.display = teamMemberCount >= currentRegMax ? 'none' : 'flex';
-}
-
-function sendTeamInvite(inputId) {
-    const inputEl = document.getElementById(inputId);
-    if (!inputEl || !inputEl.value) {
-        showMessage("Please enter an email or Account ID to invite.");
-        return;
-    }
-    let reg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
-    const code = reg && reg.teamCode ? reg.teamCode : 'PENDING';
-    
-    showMessage(`Invite sent! When ${inputEl.value} clicks "Join" in their email, they will be automatically added to the team.`);
-}
-
-function saveTeamMembers() {
-  let reg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
-  if (reg) {
-    const inputs = document.querySelectorAll('.team-member-input');
-    reg.members = Array.from(inputs).map(inp => inp.value.trim() || 'Pending');
-    saveCache();
+  
+  // Hide roommate box for individual booking
+  const roommateBox = document.getElementById('roommateId');
+  if (roommateBox && roommateBox.parentElement) {
+      roommateBox.parentElement.style.display = 'none';
   }
+
+  calculateRoomCost();
 }
 
-function removeTeamMemberField(id) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.remove(); teamMemberCount--;
-    saveTeamMembers();
-    window.updateMemberCount();
+function calculateRoomCost() {
+  const checks = document.querySelectorAll('.accom-day-check:checked');
+  const days = checks.length;
+  const price = 300; 
+  const costBox = document.getElementById('roomTotalCost');
+  if(costBox) costBox.innerText = `₹${price * days}`;
+  currentPendingFee = price * days;
+}
+
+window.processRoomBooking = async function() {
+  const wing = document.getElementById('roomWing').value;
+  const checks = document.querySelectorAll('.accom-day-check:checked');
+  if (checks.length === 0) return showMessage("Please select at least one day for accommodation.");
+  
+  const selectedDays = Array.from(checks).map(c => c.value).join(', ');
+
+  const dbAccoms = await DatabaseAPI.get('accommodations');
+  const wingBookings = dbAccoms.filter(a => a.wing === wing);
+  const maxCapacity = wing === 'male' ? 150 * 3 : 120 * 3;
+  if (wingBookings.length >= maxCapacity) {
+      showMessage(`Sorry, the ${wing} wing is currently fully booked.`);
+      return;
   }
-}
 
-// REAL Razorpay Integration
-function initRazorpayMock(amount, successMsg, callback) {
-    pendingRzpAmount = amount;
-    pendingRzpSuccessMsg = successMsg;
-    pendingRzpCallback = callback;
-    
-    const rzpAmountDisplay = document.getElementById('rzpAmountDisplay');
-    if (rzpAmountDisplay) rzpAmountDisplay.innerText = `₹${amount}`;
-    
-    const rzpLoader = document.getElementById('rzpLoader');
-    if (rzpLoader) {
-        rzpLoader.classList.add('hidden');
-        rzpLoader.classList.remove('flex');
-    }
-    
-    openModal('razorpayModal');
-}
+  calculateRoomCost();
+  processRazorpayPayment(currentPendingFee, "Accommodation Booking Successful!", async (payId) => {
 
-function confirmMockPayment() {
-    const loader = document.getElementById('rzpLoader');
-    if(loader) {
-        loader.classList.remove('hidden');
-        loader.classList.add('flex');
-    }
-    
-    setTimeout(async () => {
-        closeModal('razorpayModal');
-        
-        const paymentId = 'pay_' + Math.random().toString(36).substr(2, 9);
-        
-        const pData = {
-            id: paymentId,
-            amount: pendingRzpAmount,
-            status: 'Success',
-            timestamp: new Date().toLocaleString(),
-            user: userProfile.accountId
-        };
-        userProfile.payments.push(pData);
-        await DatabaseAPI.add('payments', pData);
-
-        saveCache();
-        showMessage(pendingRzpSuccessMsg);
-        if (pendingRzpCallback) pendingRzpCallback(paymentId);
-    }, 1500);
-}
-
-function processRazorpayPayment(amount, successMsg, callback) {
-    if(amount === 0) {
-        callback(`FREE_${Math.random().toString(36).substr(2, 9)}`);
-        return;
-    }
-    
-    const API_KEY = "YOUR_TEST_KEY_HERE"; 
-    
-    if (API_KEY === "YOUR_TEST_KEY_HERE" || typeof window.Razorpay === 'undefined') {
-        initRazorpayMock(amount, successMsg, callback);
-        return;
-    }
-
-    var options = {
-        "key": API_KEY, // Test key
-        "amount": amount * 100, 
-        "currency": "INR",
-        "name": "Autumn Fest 2026",
-        "description": "Registration Fee",
-        "image": "https://autumnfest.in/logo.png",
-        "handler": async function (response){
-            const paymentId = response.razorpay_payment_id;
-            
-            const pData = {
-                id: paymentId,
-                amount: amount,
-                status: 'Success',
-                timestamp: new Date().toLocaleString(),
-                user: userProfile.accountId
-            };
-            userProfile.payments.push(pData);
-            await DatabaseAPI.add('payments', pData);
-
-            saveCache();
-            showMessage(successMsg);
-            if (callback) callback(paymentId);
-        },
-        "prefill": {
-            "name": userProfile.name,
-            "email": userProfile.email,
-            "contact": userProfile.phone || "9999999999"
-        },
-        "theme": { "color": "#f43f5e" }
+    userProfile.accommodation = {
+      type: "Individual", wing: wing, duration: selectedDays, roommate: "None", roomNumber: "Pending", payId: payId
     };
-    try {
-        var rzp1 = new window.Razorpay(options);
-        rzp1.on('payment.failed', function (response){
-            showMessage("Payment Failed: " + response.error.description);
-        });
-        rzp1.open();
-    } catch(e) {
-        console.error(e);
-        initRazorpayMock(amount, successMsg, callback);
-    }
-}
 
-function processPayment() {
-  if (currentRegMax > 1 && regMode === 'create' && teamMemberCount < currentRegMin) { showMessage(`Minimum ${currentRegMin} members required!`); return; }
+    await DatabaseAPI.add('accommodations', {
+      id: userProfile.accountId, name: userProfile.name, wing: wing, duration: selectedDays, requested: "None", room: null, payId: payId
+    });
 
-  processRazorpayPayment(currentPendingFee, "Payment Successful! Registration complete.", async (payId) => {
-    let reg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
-    if (!reg) { reg = { eventId: currentModalEvent.id, teamName: 'Individual', teamCode: null, members: [], payment: 'Success' }; userProfile.registrations.push(reg); }
-    else { reg.payment = 'Success'; saveTeamMembers(); }
-
-    const regData = {
-      id: Date.now().toString(),
-      eventId: currentModalEvent.id,
-      teamName: reg.teamName,
-      teamCode: reg.teamCode,
-      leader: userProfile.accountId,
-      members: reg.members || [],
-      payment: 'Success',
-      payId: payId
-    };
-    
-    await DatabaseAPI.add('registrations', regData);
     saveCache();
-    closeModal('registerModal');
     navigate('profile');
   });
 }
 
+async function autoAssignRooms() {
+  let maxRooms = { male: 150, female: 120 };
+  let dbAccoms = await DatabaseAPI.get('accommodations');
+  
+  let unassigned = dbAccoms.filter(b => !b.room);
+  let successCount = 0;
+
+  for(let b of unassigned) {
+    let daysBooked = b.duration.split(',').map(d => d.trim());
+    let w = b.wing;
+    let roomAssigned = null;
+
+    for (let r = 1; r <= maxRooms[w]; r++) {
+      let canFit = true;
+      for (let day of daysBooked) {
+        let occupantsOnDay = dbAccoms.filter(a => a.room == r && a.wing == w && a.duration.includes(day));
+        if (occupantsOnDay.length >= 3) {
+          canFit = false;
+          break;
+        }
+      }
+      if (canFit) {
+        roomAssigned = r;
+        break;
+      }
+    }
+
+    if (roomAssigned) {
+      b.room = roomAssigned;
+      successCount++;
+      await DatabaseAPI.update('accommodations', b.id, { room: roomAssigned });
+      if (b.id === userProfile.accountId && userProfile.accommodation) {
+        userProfile.accommodation.roomNumber = roomAssigned;
+        saveCache();
+      }
+    }
+  }
+
+  await renderAdminAccomTable();
+  showMessage(`Assigned ${successCount} new members to rooms.`);
+}
+
+window.renderAdminAccomTable = async function() {
+  const dbAccoms = await DatabaseAPI.get('accommodations');
+  let tab = document.getElementById('admin-accom-tab');
+  if (!tab) return;
+
+  // Build daily matrix
+  let dailyRooms = { 'Day 1': {}, 'Day 2': {}, 'Day 3': {} };
+  let paidList = [];
+  
+  dbAccoms.forEach(a => {
+      paidList.push(a);
+      if (a.room && a.duration) {
+          ['Day 1', 'Day 2', 'Day 3'].forEach(day => {
+              if (a.duration.includes(day)) {
+                  if (!dailyRooms[day][a.room]) dailyRooms[day][a.room] = [];
+                  dailyRooms[day][a.room].push(a.id);
+              }
+          });
+      }
+  });
+
+  const selectedDay = document.getElementById('accomDayFilter')?.value || 'Day 1';
+
+  tab.innerHTML = `
+      <div class="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+          <div>
+              <h3 class="text-xl font-bold text-white">Accommodation Operations</h3>
+              <p class="text-xs text-zinc-400 mt-1">Review paid records and daily room allocations.</p>
+          </div>
+          <button onclick="autoAssignRooms()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold text-sm shadow-[0_0_15px_rgba(37,99,235,0.4)] transition shrink-0">Auto-Assign Pending</button>
+      </div>
+
+      <div class="bg-black/30 p-4 sm:p-6 rounded-3xl border border-white/5 mb-6 shadow-xl w-full overflow-hidden">
+          <h4 class="text-white font-bold mb-4 flex items-center gap-2"><i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i> Paid Participants (${paidList.length})</h4>
+          <div class="max-h-52 overflow-y-auto w-full custom-scrollbar">
+              <div class="overflow-x-auto w-full">
+                  <table class="w-full text-left text-xs whitespace-nowrap min-w-[500px]">
+                      <thead class="text-zinc-500 uppercase tracking-widest text-[9px] border-b border-white/10 sticky top-0 bg-zinc-950/90 backdrop-blur-md">
+                          <tr><th class="pb-2">Account ID</th><th class="pb-2">Name</th><th class="pb-2">Days Booked</th><th class="pb-2">Room Status</th></tr>
+                      </thead>
+                      <tbody class="text-zinc-300 divide-y divide-white/5">
+                          ${paidList.map(p => `<tr class="hover:bg-white/5"><td class="py-3 text-cyan-400 font-mono">${p.id}</td><td class="py-3 text-white font-bold">${p.name}</td><td class="py-3 text-zinc-400">${p.duration}</td><td class="py-3 font-bold ${p.room?'text-emerald-400':'text-amber-400'}">${p.room?'Room '+p.room:'Pending Assignment'}</td></tr>`).join('')}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      </div>
+
+      <div class="bg-zinc-900/40 border border-white/5 rounded-3xl p-4 sm:p-6 shadow-xl flex flex-col gap-4">
+          <div class="flex flex-wrap sm:flex-nowrap justify-between items-center gap-4 mb-2">
+              <h4 class="text-white font-bold flex items-center gap-2 w-full sm:w-auto"><i data-lucide="door-closed" class="w-4 h-4 text-blue-400"></i> Daily Room Mapping</h4>
+              <div class="flex gap-2 bg-black/40 p-1 rounded-xl border border-white/10 shrink-0">
+                  ${['Day 1', 'Day 2', 'Day 3'].map(d => `
+                      <button onclick="document.getElementById('accomDayFilter').value='${d}'; renderAdminAccomTable()" class="px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold transition ${selectedDay === d ? 'bg-blue-600 text-white shadow' : 'text-zinc-400 hover:bg-zinc-800'}">${d}</button>
+                  `).join('')}
+                  <input type="hidden" id="accomDayFilter" value="${selectedDay}">
+              </div>
+          </div>
+          
+          <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 overflow-y-auto max-h-72 custom-scrollbar p-1">
+              ${Object.keys(dailyRooms[selectedDay]).length > 0 ? Object.entries(dailyRooms[selectedDay]).sort((a,b) => parseInt(a[0]) - parseInt(b[0])).map(([room, occupants]) => `
+                  <div class="bg-black/60 border ${occupants.length >= 3 ? 'border-red-500/30' : 'border-emerald-500/30'} p-3 rounded-xl text-center shadow-inner hover:bg-zinc-800 transition cursor-pointer group relative">
+                      <p class="text-xs sm:text-sm text-white font-black mb-1 group-hover:text-blue-400 transition">R-${room}</p>
+                      <div class="text-[9px] sm:text-[10px] text-cyan-400 font-mono space-y-0.5 tracking-wider truncate">
+                          ${occupants.map(occ => `<p>${occ.replace('AUT-26-','')}</p>`).join('')}
+                      </div>
+                      ${occupants.length >= 3 ? `<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,1)]"></span>` : ''}
+                  </div>
+              `).join('') : '<p class="text-xs text-zinc-500 col-span-full italic">No rooms actively occupied for this day.</p>'}
+          </div>
+      </div>
+  `;
+  renderIcons();
+}
+
+// ==========================================
+// 8. MODALS & FORMS
 // ==========================================
 // 10. GALLERY & UPLOADS
 // ==========================================
@@ -2930,7 +2941,7 @@ window.renderAdminEventsList = function(type = 'events') {
             btnFest.className = "flex-1 px-6 py-2 bg-zinc-800 text-zinc-400 hover:text-white rounded-lg text-xs font-bold transition shadow";
             if (addBtn) {
                 addBtn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Add Event';
-                addBtn.setAttribute('onclick', "openAdminEventModal(null)");
+                addBtn.setAttribute('onclick', "openAdminEventModal('entrepreneurial')");
             }
         } else {
             btnFest.className = "flex-1 px-6 py-2 bg-rose-600 text-white rounded-lg text-xs font-bold transition shadow";
