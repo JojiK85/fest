@@ -29,7 +29,6 @@
 // 1. INJECT MODALS DYNAMICALLY
 // ==========================================
 function injectSharedComponents() {
-    // (Retaining the exact HTML string for modals to avoid breaking your UI)
     const modalsHTML = `
         <!-- Team QR Modal -->
         <div id="teamQrModal" class="fixed inset-0 z-[140] hidden items-center justify-center p-4">
@@ -222,6 +221,41 @@ function injectSharedComponents() {
             </div>
         </div>
 
+        <!-- Forgot Password Modal -->
+        <div id="forgotPasswordModal" class="fixed inset-0 z-[160] hidden items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('forgotPasswordModal')"></div>
+            <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col p-6 text-center">
+                <div class="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-4"><i data-lucide="lock" class="w-8 h-8 text-rose-500"></i></div>
+                <h3 class="text-xl font-bold text-white mb-2">Reset Password</h3>
+                <p class="text-xs text-zinc-400 mb-6" id="forgotPassDesc">Enter your registered email to receive a 6-digit OTP.</p>
+                
+                <div id="forgotPassStep1">
+                    <input type="email" id="forgotEmail" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-rose-500 outline-none mb-4" placeholder="Your Email Address">
+                    <button onclick="requestOTP()" class="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition">Send OTP</button>
+                </div>
+                
+                <div id="forgotPassStep2" class="hidden">
+                    <input type="text" id="forgotOtp" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-center font-mono tracking-widest text-lg focus:border-rose-500 outline-none mb-3" placeholder="------" maxlength="6">
+                    <input type="password" id="forgotNewPass" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-rose-500 outline-none mb-4" placeholder="New Password">
+                    <button onclick="verifyOTPAndReset()" class="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition">Reset Password</button>
+                </div>
+                <button onclick="closeModal('forgotPasswordModal')" class="mt-4 text-xs text-zinc-500 hover:text-white">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Signup OTP Modal -->
+        <div id="signupOtpModal" class="fixed inset-0 z-[160] hidden items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('signupOtpModal')"></div>
+            <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col p-6 text-center">
+                <div class="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4"><i data-lucide="mail-check" class="w-8 h-8 text-blue-500"></i></div>
+                <h3 class="text-xl font-bold text-white mb-2">Verify Email</h3>
+                <p class="text-xs text-zinc-400 mb-6">Enter the 6-digit OTP sent to your email to securely create your account.</p>
+                <input type="text" id="signupOtpInput" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-center font-mono tracking-widest text-lg focus:border-blue-500 outline-none mb-4" placeholder="------" maxlength="6">
+                <button onclick="verifySignupOTP()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition shadow">Verify & Create Account</button>
+                <button onclick="closeModal('signupOtpModal')" class="mt-4 text-xs text-zinc-500 hover:text-white">Cancel Signup</button>
+            </div>
+        </div>
+
         <!-- Profile Edit Modal -->
         <div id="profileEditModal" class="fixed inset-0 z-[120] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('profileEditModal')"></div>
@@ -369,7 +403,7 @@ function injectSharedComponents() {
                 </div>
                 <div class="flex justify-end gap-2 sm:gap-3 shrink-0 mt-4 mb-4 sm:mb-0 w-full sm:w-auto">
                     <button onclick="closeModal('uploadModal')" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-zinc-400 hover:text-white transition bg-zinc-800/50 rounded-lg sm:bg-transparent sm:rounded-none">Cancel</button>
-                    <button onclick="submitGalleryUpload()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg bg-rose-600 text-white text-xs sm:text-sm font-bold hover:bg-rose-500 transition">Submit</button>
+                    <button onclick="submitGalleryUpload()" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg bg-rose-600 text-white text-xs sm:text-sm font-bold hover:bg-rose-500 transition" id="galUploadBtn">Submit</button>
                 </div>
             </div>
         </div>
@@ -722,6 +756,33 @@ const DatabaseAPI = {
     }
 };
 
+// Global Events mapping replaces the hardcoded object
+window.EVENTS_DATA = { entrepreneurial: [], tech: [], cultural: [], shows: [], online: [], festivals: [] };
+
+function groupEventsData(dbEvents) {
+    let grouped = { entrepreneurial: [], tech: [], cultural: [], shows: [], online: [], festivals: [] };
+    dbEvents.forEach(ev => {
+        const cat = ev.category || 'tech';
+        if(grouped[cat]) grouped[cat].push(ev);
+        else grouped[cat] = [ev];
+    });
+    return grouped;
+}
+
+async function uploadFileToDrive(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        const res = await fetch(`${BASE_URL}/upload`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || "Upload failed");
+        return data.url;
+    } catch (e) {
+        console.error("Upload failed", e);
+        throw e;
+    }
+}
+
 // ==========================================
 // 3. STATE & DATA CACHING
 // ==========================================
@@ -742,12 +803,6 @@ let pendingRzpAmount = 0;
 let pendingRzpSuccessMsg = "";
 let pendingRzpCallback = null;
 
-// Replaced hardcoded data with dynamic database template
-let EVENTS_DATA = {
-  entrepreneurial: [], tech: [], cultural: [], shows: [], online: [], festivals: []
-};
-
-// Starts empty, will populate dynamically from database when session restored
 let userProfile = {
   name: "", email: "", phone: "", gender: "Not Specified",
   college: "University", photo: "", tempPhoto: "",
@@ -797,7 +852,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Initialize DB Connection First (Instant due to SWR cache layer)
     await DatabaseAPI.init(neededCollections);
-    await buildEventsData(); // Build dynamic events from database
     
     // Attempt session restore using Database Live Check
     await restoreSession();
@@ -847,7 +901,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Handle seamless background updates
     window.addEventListener('db-updated', async () => {
-        await buildEventsData();
         if (!isLoggedIn) return;
         if (currentPage === 'profile') {
             await renderProfile();
@@ -856,29 +909,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 });
-
-async function buildEventsData() {
-    const dbEvents = await DatabaseAPI.get('events');
-    EVENTS_DATA = { entrepreneurial: [], tech: [], cultural: [], shows: [], online: [], festivals: [] };
-    
-    dbEvents.forEach(ev => {
-        if(!EVENTS_DATA[ev.category]) EVENTS_DATA[ev.category] = [];
-        EVENTS_DATA[ev.category].push({
-            id: ev.id,
-            status: ev.status || 'open',
-            name: ev.name,
-            fee: ev.fee,
-            prize: ev.prize,
-            team: ev.team,
-            date: ev.date,
-            venue: ev.venue,
-            desc: ev.desc,
-            banner: ev.banner
-        });
-    });
-    
-    updateDynamicCalendar();
-}
 
 async function restoreSession() {
     const cached = localStorage.getItem(CACHE_KEY);
@@ -981,7 +1011,7 @@ function updateCountdown() {
 }
 
 // ==========================================
-// 5. NAVIGATION & AUTH
+// 5. NAVIGATION & AUTH & OTP
 // ==========================================
 function navigate(pageId) {
     const protectedRoutes = ['home', 'events', 'gallery', 'sponsors', 'accommodation', 'contact', 'profile', 'admin'];
@@ -1017,165 +1047,197 @@ function toggleAuthMode(isLogin) {
   const btnSignup = document.getElementById('tab-signup');
   const fields = document.getElementById('signup-fields');
   
-  // Safely inject password field if missing in original DOM
-  const formBox = document.getElementById('auth-email')?.parentElement;
-  if (formBox && !document.getElementById('auth-password')) {
-      document.getElementById('auth-email').insertAdjacentHTML('afterend', `
-          <input type="password" id="auth-password" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500 transition shadow-inner mt-4" placeholder="Password" required>
-      `);
-  }
-
   if(btnLogin && btnSignup && fields) {
       if (isLogin) {
         btnLogin.className = "flex-1 py-2 rounded-lg text-xs md:text-sm font-bold transition bg-zinc-800 text-white shadow";
         btnSignup.className = "flex-1 py-2 rounded-lg text-xs md:text-sm font-bold transition text-zinc-500 hover:text-zinc-300";
         fields.classList.add('hidden');
         document.getElementById('auth-submit-btn').innerText = "Sign In";
+        const fp = document.getElementById('forgotPassLink');
+        if(fp) fp.style.display = 'block';
       } else {
         btnSignup.className = "flex-1 py-2 rounded-lg text-xs md:text-sm font-bold transition bg-zinc-800 text-white shadow";
         btnLogin.className = "flex-1 py-2 rounded-lg text-xs md:text-sm font-bold transition text-zinc-500 hover:text-zinc-300";
         fields.classList.remove('hidden');
         document.getElementById('auth-submit-btn').innerText = "Create Account";
+        const fp = document.getElementById('forgotPassLink');
+        if(fp) fp.style.display = 'none';
       }
   }
 }
 
 window.handleLogin = async function(event) {
-  // CRITICAL: Prevent form from reloading the page and cancelling backend sync!
-  if (event && event.preventDefault) event.preventDefault();
-  else if (window.event) window.event.preventDefault();
+    if (event && event.preventDefault) event.preventDefault();
 
-  let emailEl = document.getElementById('auth-email');
-  let passEl = document.getElementById('auth-password');
-  
-  // Fallback if password field is completely missing from HTML
-  if (emailEl && !passEl) {
-      emailEl.insertAdjacentHTML('afterend', `<input type="password" id="auth-password" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500 transition shadow-inner mt-4" placeholder="Password" required>`);
-      return showMessage("Please enter your password in the new field.");
-  }
-  
-  if (!emailEl || !passEl) return showMessage("Form input missing!");
-  
-  const email = emailEl.value.trim().toLowerCase();
-  const password = passEl.value;
-  
-  if (!email || !password) return showMessage("Email and Password are required.");
-  
-  // Refetch database users right before verifying to ensure we have the absolute latest data
-  await DatabaseAPI.init(); 
-  const users = await DatabaseAPI.get('users');
-  const existingUser = users.find(u => u.email === email);
+    let emailEl = document.getElementById('auth-email');
+    let passEl = document.getElementById('auth-password');
+    if (!emailEl || !passEl) return showMessage("Form input missing!");
+    
+    const email = emailEl.value.trim().toLowerCase();
+    const password = passEl.value;
+    
+    if (!email || !password) return showMessage("Email and Password are required.");
+    
+    await DatabaseAPI.init(); 
+    const users = await DatabaseAPI.get('users');
+    const existingUser = users.find(u => u.email === email);
 
-  // Default Roles (hardcoded admin overrides for simplicity)
-  let assignedRole = ROLES.USER;
-  if (email === 'volunteer@autumnfest.in') assignedRole = ROLES.ADMIN;
-  else if (email === 'manager@autumnfest.in') assignedRole = ROLES.SUPERADMIN;
-  else if (email === 'tech@autumnfest.in') assignedRole = ROLES.SUPERACCOUNT;
-  else if (email === 'root@autumnfest.in') assignedRole = ROLES.PRIMARY;
+    let assignedRole = ROLES.USER;
 
-  if (isSignupMode) {
-      if (existingUser && existingUser.name !== "Pending User") {
-          return showMessage("Email already in use! Please log in.");
-      }
-      
-      // OTP Signup Flow
-      showMessage("Sending OTP to your email...");
-      try {
-          const res = await fetch(`${BASE_URL}/auth/signup-otp`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'send_otp', email: email })
-          });
-          const data = await res.json();
-          if (!res.ok) return showMessage(data.error || "Failed to send OTP.");
-          
-          const otp = prompt("An OTP has been sent to your email. Enter the 6-digit OTP:");
-          if (!otp) return showMessage("Signup cancelled.");
+    if (isSignupMode) {
+        if (existingUser && existingUser.name !== "Pending User") {
+            return showMessage("Email already in use! Please log in.");
+        }
+        
+        const name = document.getElementById('auth-name') ? document.getElementById('auth-name').value : "New User";
+        const gender = document.getElementById('auth-gender') ? document.getElementById('auth-gender').value : "Not Specified";
+        const phone = document.getElementById('auth-phone') ? document.getElementById('auth-phone').value : "";
+        
+        let newId = existingUser ? existingUser.id : "AUT-26-" + Math.floor(1000 + Math.random() * 9000);
+        assignedRole = existingUser ? existingUser.role : ROLES.USER;
+        
+        window.pendingSignupData = { 
+            name, email, password, gender, phone, assignedRole, newId, isPreAssigned: !!existingUser
+        };
 
-          const verifyRes = await fetch(`${BASE_URL}/auth/signup-otp`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'verify', email: email, otp: otp })
-          });
-          if (!verifyRes.ok) {
-              const verifyData = await verifyRes.json();
-              return showMessage(verifyData.error || "Invalid OTP.");
-          }
-      } catch (e) {
-          return showMessage("Error during OTP verification.");
-      }
-      
-      const name = document.getElementById('auth-name') ? document.getElementById('auth-name').value : "New User";
-      const gender = document.getElementById('auth-gender') ? document.getElementById('auth-gender').value : "Not Specified";
-      const phone = document.getElementById('auth-phone') ? document.getElementById('auth-phone').value : "";
-      
-      let newId;
-      if (existingUser) {
-          // Pre-assigned user completing registration
-          newId = existingUser.id;
-          assignedRole = existingUser.role > assignedRole ? existingUser.role : assignedRole;
-          await DatabaseAPI.update('users', newId, { name, password, gender, phone, role: assignedRole });
-      } else {
-          newId = "AUT-26-" + Math.floor(1000 + Math.random() * 9000);
-          await DatabaseAPI.add('users', { id: newId, name, email, password, role: assignedRole, phone, gender });
-      }
-      
-      userProfile.accountId = newId;
-      currentRole = assignedRole;
-  } else {
-      // Login Mode
-      if (!existingUser) return showMessage("User not found!");
-      if (existingUser.password !== password) return showMessage("Incorrect password!");
-      
-      userProfile.accountId = existingUser.id;
-      currentRole = existingUser.role;
-  }
+        // Generates frontend random OTP since the python API/send-otp verifies if user already exists
+        window.currentSignupOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        showMessage("Sending OTP to your email...");
 
-  isAdmin = currentRole >= ROLES.ADMIN;
-  isLoggedIn = true;
-  
-  // Refetch latest user profile details
-  const allUsersNow = await DatabaseAPI.get('users');
-  const me = allUsersNow.find(u => u.id === userProfile.accountId);
-  await populateUserProfile(me);
-  
-  saveCache();
-  finalizeLogin(isSignupMode ? `Account Created! Welcome, ${userProfile.name}!` : `Welcome back, ${userProfile.name}!`);
+        try {
+            await fetch(`${BASE_URL}/send-mail`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subject: "Autumn Fest - Verify Your Account",
+                    body: `Hello ${name},<br><br>Your verification OTP code for creating your Autumn Fest account is: <b>${window.currentSignupOtp}</b>.<br><br>Do not share this code.`,
+                    recipients: [{ email: email, name: name }]
+                })
+            });
+            const otpInp = document.getElementById('signupOtpInput');
+            if(otpInp) otpInp.value = '';
+            openModal('signupOtpModal');
+        } catch(e) {
+            showMessage("Failed to send OTP verification email. Try again later.");
+        }
+        return; // Stop here, completion happens in verifySignupOTP()
+    } else {
+        // Login Mode
+        if (!existingUser) return showMessage("User not found!");
+        if (existingUser.password !== password) return showMessage("Incorrect password!");
+        if (existingUser.name === "Pending User") return showMessage("Your account was pre-assigned. Please Sign Up to complete profile setup.");
+        
+        userProfile.accountId = existingUser.id;
+        currentRole = existingUser.role;
+        isAdmin = currentRole >= ROLES.ADMIN;
+        isLoggedIn = true;
+        
+        const allUsersNow = await DatabaseAPI.get('users');
+        const me = allUsersNow.find(u => u.id === userProfile.accountId);
+        await populateUserProfile(me);
+        
+        saveCache();
+        finalizeLogin(`Welcome back, ${userProfile.name}!`);
+    }
 }
 
-window.triggerForgotPassword = async function() {
-    const email = prompt("Enter your registered email address:");
-    if (!email) return;
+window.verifySignupOTP = async function() {
+    const inputOtp = document.getElementById('signupOtpInput').value.trim();
+    if (inputOtp !== window.currentSignupOtp) {
+        return showMessage("Invalid OTP! Try again.");
+    }
+    closeModal('signupOtpModal');
+    
+    const data = window.pendingSignupData;
+    if (data.isPreAssigned) {
+        await DatabaseAPI.update('users', data.newId, { name: data.name, password: data.password, gender: data.gender, phone: data.phone, role: data.assignedRole });
+    } else {
+        await DatabaseAPI.add('users', { id: data.newId, name: data.name, email: data.email, password: data.password, role: data.assignedRole, phone: data.phone, gender: data.gender });
+    }
+    
+    userProfile.accountId = data.newId;
+    currentRole = data.assignedRole;
+    isAdmin = currentRole >= ROLES.ADMIN;
+    isLoggedIn = true;
 
+    const allUsersNow = await DatabaseAPI.get('users');
+    const me = allUsersNow.find(u => u.id === userProfile.accountId);
+    await populateUserProfile(me);
+
+    saveCache();
+    finalizeLogin(`Account Created! Welcome, ${userProfile.name}!`);
+}
+
+window.triggerForgotPassword = function() {
+    const emailEl = document.getElementById('forgotEmail');
+    const otpEl = document.getElementById('forgotOtp');
+    const passEl = document.getElementById('forgotNewPass');
+    
+    if(emailEl) emailEl.value = '';
+    if(otpEl) otpEl.value = '';
+    if(passEl) passEl.value = '';
+    
+    const step1 = document.getElementById('forgotPassStep1');
+    const step2 = document.getElementById('forgotPassStep2');
+    const desc = document.getElementById('forgotPassDesc');
+    
+    if (step1) step1.classList.remove('hidden');
+    if (step2) step2.classList.add('hidden');
+    if (desc) desc.innerText = "Enter your registered email to receive a 6-digit OTP.";
+    
+    openModal('forgotPasswordModal');
+}
+
+window.requestOTP = async function() {
+    const email = document.getElementById('forgotEmail').value.trim();
+    if (!email) return showMessage("Please enter your email.");
+    
     showMessage("Sending OTP to your email...");
     try {
-        const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
+        const res = await fetch(`${BASE_URL}/send-otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'send_otp', email: email })
+            body: JSON.stringify({ email })
         });
         const data = await res.json();
-        if (!res.ok) return showMessage(data.error || "Failed to send OTP.");
+        if (data.success) {
+            document.getElementById('forgotPassStep1').classList.add('hidden');
+            document.getElementById('forgotPassStep2').classList.remove('hidden');
+            document.getElementById('forgotPassDesc').innerText = "Check your email for the 6-digit OTP.";
+            showMessage("OTP sent successfully!");
+        } else {
+            showMessage(data.error || "Failed to send OTP.");
+        }
+    } catch(e) {
+        showMessage("Server error. Try again later.");
+    }
+}
 
-        const otp = prompt("An OTP has been sent to your email. Enter the 6-digit OTP:");
-        if (!otp) return showMessage("Reset cancelled.");
-
-        const newPass = prompt("Enter your new password:");
-        if (!newPass) return showMessage("Reset cancelled.");
-
-        const resetRes = await fetch(`${BASE_URL}/auth/forgot-password`, {
+window.verifyOTPAndReset = async function() {
+    const email = document.getElementById('forgotEmail').value.trim();
+    const otp = document.getElementById('forgotOtp').value.trim();
+    const password = document.getElementById('forgotNewPass').value.trim();
+    
+    if (!otp || !password) return showMessage("Please fill in OTP and new password.");
+    if (password.length < 6) return showMessage("Password must be at least 6 characters.");
+    
+    try {
+        const res = await fetch(`${BASE_URL}/reset-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'verify_and_reset', email: email, otp: otp, newPassword: newPass })
+            body: JSON.stringify({ email, otp, password })
         });
-        const resetData = await resetRes.json();
-        if (resetRes.ok) {
-            showMessage("Password reset successfully! You can now log in.");
+        const data = await res.json();
+        if (data.success) {
+            closeModal('forgotPasswordModal');
+            showMessage("Password reset successfully! Please login.");
+            document.getElementById('forgotPassStep1').classList.remove('hidden');
+            document.getElementById('forgotPassStep2').classList.add('hidden');
         } else {
-            showMessage(resetData.error || "Failed to reset password.");
+            showMessage(data.error || "Failed to reset password.");
         }
-    } catch (e) {
-        showMessage("Server error during password reset.");
+    } catch(e) {
+        showMessage("Server error. Try again later.");
     }
 }
 
@@ -1251,13 +1313,13 @@ function applyGlobalStatusUI() {
     document.getElementById('countdown-container').classList.remove('hidden');
   } else if (festStatus === 'completed') {
     banner.classList.remove('hidden');
-    banner.className = "mb-6 px-4 sm:px-6 py-1.5 sm:py-2 rounded-full border shadow-lg font-bold tracking-wider text-[10px] sm:text-xs md:text-sm uppercase border-red-500/50 bg-red-500/20 text-red-400";
+    banner.className = "mb-6 px-4 py-2 rounded-full border shadow-lg font-bold tracking-wider text-xs uppercase border-red-500/50 bg-red-500/20 text-red-400";
     banner.innerText = "Fest Completed";
     subtitle.innerText = "Thank you for making Autumn 2026 a grand success. See you next time!";
     document.getElementById('countdown-container').classList.add('hidden');
   } else if (festStatus === 'soon') {
     banner.classList.remove('hidden');
-    banner.className = "mb-6 px-4 sm:px-6 py-1.5 sm:py-2 rounded-full border shadow-lg animate-pulse font-bold tracking-wider text-[10px] sm:text-xs md:text-sm uppercase border-amber-500/50 bg-amber-500/20 text-amber-400";
+    banner.className = "mb-6 px-4 py-2 rounded-full border shadow-lg animate-pulse font-bold tracking-wider text-xs uppercase border-amber-500/50 bg-amber-500/20 text-amber-400";
     banner.innerText = "New Fest Coming Soon";
     subtitle.innerText = "We are gearing up for the next big edition. Stay tuned for announcements!";
     document.getElementById('countdown-container').classList.remove('hidden');
@@ -1314,39 +1376,37 @@ function generateCalendar() {
   let calHTML = '';
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
   const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
-  for (let i = 0; i < firstDay; i++) calHTML += `<div class="h-8 sm:h-10 md:h-14"></div>`;
+  for (let i = 0; i < firstDay; i++) calHTML += `<div class="h-10 md:h-14"></div>`;
   for (let i = 1; i <= totalDays; i++) {
     const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
     const hasEvent = calendarEvents[dateKey];
     let iconHTML = '';
     let styleClasses = 'bg-white/5 border-transparent text-zinc-300 hover:bg-white/10';
     if (hasEvent) {
-      styleClasses = 'bg-cyan-500/10 border border-cyan-500/50 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.2)] hover:bg-cyan-500/20';
-      iconHTML = `<span class="absolute bottom-1 right-1 text-[8px] sm:text-xs opacity-80">${hasEvent[0].emoji}</span>`;
+      styleClasses = 'bg-cyan-500/10 border border-cyan-500/50 text-cyan-400 shadow hover:bg-cyan-500/20';
+      iconHTML = `<span class="absolute bottom-1 right-1 text-xs opacity-80">${hasEvent[0].emoji}</span>`;
     }
-    calHTML += `<div onclick="selectDate('${dateKey}')" class="flex flex-col justify-center items-center h-8 sm:h-10 md:h-14 rounded-lg md:rounded-xl cursor-pointer transition-all relative ${styleClasses}"><span class="text-[10px] sm:text-xs md:text-sm">${i}</span>${iconHTML}</div>`;
+    calHTML += `<div onclick="selectDate('${dateKey}')" class="flex flex-col justify-center items-center h-10 md:h-14 rounded-lg cursor-pointer transition-all relative ${styleClasses}"><span class="text-xs md:text-sm">${i}</span>${iconHTML}</div>`;
   }
   calGrid.innerHTML = calHTML;
 }
 
-function selectDate(dateKey) {
-  renderFeed(dateKey);
-}
+function selectDate(dateKey) { renderFeed(dateKey); }
 
 function renderFeed(dateKey) {
   const container = document.getElementById("feed-container");
   if(!container) return;
   const events = dateKey ? calendarEvents[dateKey] : null;
   if (!events || events.length === 0) {
-    container.innerHTML = `<div class="group p-3 sm:p-4 rounded-2xl bg-black/40 border border-white/5 flex items-center gap-3 sm:gap-4"><p class="text-zinc-500 text-xs sm:text-sm italic">No events selected...</p></div>`;
+    container.innerHTML = `<div class="group p-4 rounded-2xl bg-black/40 flex items-center gap-4"><p class="text-zinc-500 text-sm italic">No events selected...</p></div>`;
     return;
   }
   container.innerHTML = "";
   events.forEach((ev, index) => {
     container.innerHTML += `
-        <div onclick="openEventPopup('${dateKey}', ${index})" class="group p-3 sm:p-4 rounded-2xl bg-black/40 border border-white/5 hover:border-white/20 hover:bg-black/60 transition-all cursor-pointer flex items-center gap-3 sm:gap-4">
-            <div class="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shrink-0 bg-white/5 text-base sm:text-xl group-hover:scale-110 transition-transform">${ev.emoji}</div>
-            <div class="flex-grow min-w-0"><h4 class="font-bold text-white text-sm md:text-base truncate break-words">${ev.title}</h4><p class="text-[10px] sm:text-xs text-zinc-400 truncate">${ev.time} • ${ev.location}</p></div>
+        <div onclick="openEventPopup('${dateKey}', ${index})" class="group p-4 rounded-2xl bg-black/40 border border-white/5 hover:border-white/20 transition-all cursor-pointer flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-xl group-hover:scale-110 transition">${ev.emoji}</div>
+            <div><h4 class="font-bold text-white">${ev.title}</h4><p class="text-xs text-zinc-400">${ev.time} • ${ev.location}</p></div>
         </div>`;
   });
 }
@@ -1373,29 +1433,35 @@ function selectCategory(catKey, btnElement) {
     
     if (catKey !== 'festivals') {
         infoHtml = `
-            <div class="flex justify-between text-[10px] sm:text-xs mb-3">
-                <div><span class="text-zinc-500 text-[8px] sm:text-[9px] block uppercase tracking-wider mb-0.5">Prize</span><span class="text-emerald-400 font-bold">${ev.prize === '-' ? '-' : '₹'+ev.prize}</span></div>
-                <div class="text-right"><span class="text-zinc-500 text-[8px] sm:text-[9px] block uppercase tracking-wider mb-0.5">Fee</span><span class="text-amber-400 font-bold">₹${ev.fee}</span></div>
+            <div class="grid grid-cols-2 gap-2 text-[10px] sm:text-xs mb-2 w-full">
+                <div class="min-w-0 bg-black/40 p-2 rounded-lg border border-white/5">
+                    <span class="text-zinc-500 text-[8px] sm:text-[9px] block uppercase tracking-wider mb-0.5">Prize</span>
+                    <span class="text-emerald-400 font-bold truncate block">${ev.prize === '-' ? '-' : '₹'+ev.prize}</span>
+                </div>
+                <div class="min-w-0 bg-black/40 p-2 rounded-lg border border-white/5 text-right">
+                    <span class="text-zinc-500 text-[8px] sm:text-[9px] block uppercase tracking-wider mb-0.5">Fee</span>
+                    <span class="text-amber-400 font-bold truncate block">₹${ev.fee}</span>
+                </div>
             </div>
         `;
         btnText = 'Register / Details';
     } else {
-        infoHtml = `<div class="mb-3 text-[10px] sm:text-xs text-zinc-400 line-clamp-2">${ev.desc}</div>`;
+        infoHtml = `<div class="mb-2 text-[10px] sm:text-xs text-zinc-400 line-clamp-2 break-words w-full">${ev.desc}</div>`;
         btnText = 'View Festival Info';
     }
 
     gridHTML += `
-        <div class="group rounded-xl bg-black/40 border border-white/5 overflow-hidden hover:border-rose-500/50 hover:shadow-[0_0_15px_rgba(225,29,72,0.15)] transition-all flex flex-col">
-            <div class="h-24 sm:h-28 relative overflow-hidden bg-black">
+        <div class="group rounded-xl bg-black/40 border border-white/5 overflow-hidden hover:border-rose-500/50 hover:shadow-[0_0_15px_rgba(225,29,72,0.15)] transition-all flex flex-col min-w-0">
+            <div class="h-32 sm:h-40 relative overflow-hidden bg-black shrink-0">
                 ${bannerHtml}
                 <div class="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent"></div>
                 <div class="absolute bottom-2 left-3 right-3">
-                    <h4 class="text-sm md:text-base font-bold text-white truncate break-words leading-tight">${ev.name} ${ev.status === 'closed' && catKey !== 'festivals' ? '<span class="text-red-400 text-[10px] ml-1 uppercase">(Closed)</span>' : ''}</h4>
+                    <h4 class="text-sm sm:text-base font-bold text-white truncate break-words leading-tight">${ev.name} ${ev.status === 'closed' && catKey !== 'festivals' ? '<span class="text-red-400 text-[10px] ml-1 uppercase">(Closed)</span>' : ''}</h4>
                 </div>
             </div>
-            <div class="p-3 md:p-4 flex-grow flex flex-col justify-between">
+            <div class="p-3 sm:p-4 flex-grow flex flex-col justify-between min-w-0">
                 ${infoHtml}
-                <button onclick="openEventModal('${catKey}', '${ev.id}')" class="w-full py-1.5 sm:py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-rose-600 hover:border-rose-600 hover:text-white transition font-semibold text-[10px] sm:text-xs">
+                <button onclick="openEventModal('${catKey}', '${ev.id}')" class="w-full py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-rose-600 hover:border-rose-600 hover:text-white transition font-semibold text-[10px] sm:text-xs shrink-0 mt-2">
                     ${btnText}
                 </button>
             </div>
@@ -1403,837 +1469,15 @@ function selectCategory(catKey, btnElement) {
   });
   document.getElementById('events-grid').innerHTML = gridHTML;
 
-  const scrollContainer = wrapper.querySelector('.custom-scrollbar');
-  if (scrollContainer) scrollContainer.scrollTop = 0;
-
-  if (!wrapper.classList.contains('hidden')) {
-      if(window.innerWidth < 1024) {
-          const el = document.getElementById('events-list-wrapper');
-          if(el) {
-              const y = el.getBoundingClientRect().top + window.scrollY - 80;
-              window.scrollTo({ top: y, behavior: 'smooth' });
-          }
-      }
-      return;
-  }
-
-  placeholder.classList.add('opacity-0');
-  setTimeout(() => {
-    placeholder.classList.remove('flex');
-    placeholder.classList.add('hidden');
-    wrapper.classList.remove('hidden');
-    wrapper.classList.add('flex');
-    
-    if (scrollContainer) scrollContainer.scrollTop = 0;
-
-    setTimeout(() => { 
-        wrapper.classList.remove('opacity-0'); 
-        wrapper.classList.add('opacity-100'); 
-        
-        if(window.innerWidth < 1024) {
-            setTimeout(() => {
-                const eventsSection = document.getElementById('events');
-                if(eventsSection) {
-                    eventsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }, 50);
-        }
-    }, 10);
-  }, 300);
+  placeholder.classList.add('hidden');
+  wrapper.classList.remove('hidden');
+  wrapper.classList.add('flex');
 }
 
 function closeCategory() {
   document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active-category'));
-  const wrapper = document.getElementById('events-list-wrapper');
-  const placeholder = document.getElementById('events-placeholder');
-  wrapper.classList.remove('opacity-100');
-  wrapper.classList.add('opacity-0');
-  setTimeout(() => {
-    wrapper.classList.remove('flex');
-    wrapper.classList.add('hidden');
-    placeholder.classList.remove('hidden');
-    placeholder.classList.add('flex');
-    setTimeout(() => { 
-        placeholder.classList.remove('opacity-0'); 
-        placeholder.classList.add('opacity-100'); 
-        
-        if(window.innerWidth < 1024) {
-            setTimeout(() => {
-                const orbit = document.querySelector('.orbit-container');
-                if(orbit) {
-                    orbit.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 50);
-        }
-    }, 10);
-  }, 300);
-}
-
-// ==========================================
-// 7. ACCOMMODATION
-// ==========================================
-function setupAccommodationForm() {
-  const wingSelect = document.getElementById('roomWing');
-  if(!wingSelect) return;
-  if (userProfile.gender === 'Female') {
-    wingSelect.value = 'female';
-    wingSelect.disabled = true;
-    wingSelect.classList.add('opacity-50');
-  } else if (userProfile.gender === 'Male') {
-    wingSelect.value = 'male';
-    wingSelect.disabled = true;
-    wingSelect.classList.add('opacity-50');
-  } else {
-    wingSelect.disabled = false;
-    wingSelect.classList.remove('opacity-50');
-  }
-  calculateRoomCost();
-}
-
-function calculateRoomCost() {
-  const duration = document.getElementById('roomDuration');
-  if(!duration) return;
-  const price = 300; 
-  const days = parseInt(duration.options[duration.selectedIndex].dataset.days);
-  document.getElementById('roomTotalCost').innerText = `₹${price * days}`;
-  currentPendingFee = price * days;
-}
-
-window.processRoomBooking = async function() {
-  const roommateId = document.getElementById('roommateId').value.trim();
-  const wing = document.getElementById('roomWing').value;
-
-  if (roommateId) {
-    const users = await DatabaseAPI.get('users');
-    const friends = roommateId.split(',').map(s => s.trim());
-    for (let fId of friends) {
-        const friend = users.find(u => u.id === fId);
-        if (friend) {
-            if (friend.gender && friend.gender !== 'Not Specified' && friend.gender !== userProfile.gender) {
-                showMessage(`Cannot share room with ${fId} (Different gender).`);
-                return;
-            }
-        } else {
-            showMessage(`Account ID ${fId} not found.`);
-            return;
-        }
-    }
-  }
-
-  const dbAccoms = await DatabaseAPI.get('accommodations');
-  const wingBookings = dbAccoms.filter(a => a.wing === wing);
-  const maxCapacity = wing === 'male' ? 50 * 3 : 40 * 3;
-  if (wingBookings.length >= maxCapacity) {
-      showMessage(`Sorry, the ${wing} wing is currently fully booked.`);
-      return;
-  }
-
-  calculateRoomCost();
-  processRazorpayPayment(currentPendingFee, "Accommodation Booking Successful!", async (payId) => {
-    const durationText = document.getElementById('roomDuration').options[document.getElementById('roomDuration').selectedIndex].text;
-
-    userProfile.accommodation = {
-      type: "Triple",
-      wing: wing,
-      duration: durationText,
-      roommate: roommateId || "None",
-      roomNumber: "Pending",
-      payId: payId
-    };
-
-    await DatabaseAPI.add('accommodations', {
-      id: userProfile.accountId,
-      name: userProfile.name,
-      wing: wing,
-      duration: durationText,
-      requested: roommateId,
-      room: null,
-      payId: payId
-    });
-
-    saveCache();
-    navigate('profile');
-  });
-}
-
-async function autoAssignRooms() {
-  let maxRooms = { male: 50, female: 40 };
-  let dbAccoms = await DatabaseAPI.get('accommodations');
-  let occupancy = { male: {}, female: {} };
-
-  dbAccoms.forEach(b => {
-    if (b.room) {
-      if (!occupancy[b.wing][b.room]) occupancy[b.wing][b.room] = [];
-      occupancy[b.wing][b.room].push(b.id);
-    }
-  });
-
-  let unassigned = dbAccoms.filter(b => !b.room);
-  let processed = new Set();
-  let successCount = 0;
-
-  for(let b of unassigned) {
-    if (processed.has(b.id)) continue;
-
-    let group = [b];
-    processed.add(b.id);
-
-    if (b.requested) {
-      let friends = b.requested.split(',').map(s => s.trim());
-      friends.forEach(fId => {
-        if (group.length >= 3) return; 
-        let friendBooking = unassigned.find(fb => fb.id === fId && fb.wing === b.wing && !processed.has(fb.id));
-        if (friendBooking) {
-          group.push(friendBooking);
-          processed.add(friendBooking.id);
-        }
-      });
-    }
-
-    let w = b.wing;
-    let roomAssigned = null;
-
-    for (let r = 1; r <= maxRooms[w]; r++) {
-      let currentCount = occupancy[w][r] ? occupancy[w][r].length : 0;
-      if (currentCount + group.length <= 3) {
-        roomAssigned = r;
-        break;
-      }
-    }
-
-    if (roomAssigned) {
-      if (!occupancy[w][roomAssigned]) occupancy[w][roomAssigned] = [];
-      for(let member of group) {
-        member.room = roomAssigned;
-        occupancy[w][roomAssigned].push(member.id);
-        successCount++;
-
-        await DatabaseAPI.update('accommodations', member.id, { room: roomAssigned });
-        if (member.id === userProfile.accountId && userProfile.accommodation) {
-          userProfile.accommodation.roomNumber = roomAssigned;
-          saveCache();
-        }
-      }
-    }
-  }
-
-  await renderAdminAccomTable();
-  if (successCount === unassigned.length) { showMessage("All pending rooms assigned successfully!"); } 
-  else { showMessage(`Assigned ${successCount} members. Some unassigned due to capacity limits.`); }
-}
-
-window.renderAdminAccomTable = async function() {
-  const dbAccoms = await DatabaseAPI.get('accommodations');
-  
-  let tab = document.getElementById('admin-accom-tab');
-  
-  // Inject Filter Dropdown if it doesn't exist
-  let filterContainer = document.getElementById('accom-filter-container');
-  if (tab && !filterContainer) {
-      const header = tab.querySelector('.flex.flex-col.sm\\:flex-row');
-      if (header) {
-          header.insertAdjacentHTML('afterend', `
-              <div id="accom-filter-container" class="my-4 flex items-center gap-3 bg-black/30 p-3 rounded-xl border border-white/5 w-fit">
-                  <label class="text-[10px] sm:text-xs text-zinc-500 font-bold uppercase shrink-0">Filter by Duration:</label>
-                  <select id="accomDayFilter" onchange="renderAdminAccomTable()" class="bg-zinc-800 text-white text-xs sm:text-sm focus:outline-none cursor-pointer border border-white/10 rounded-xl px-3 py-1.5">
-                      <option value="all">All Bookings (Total 3 Days)</option>
-                      <option value="1">1 Day Bookings</option>
-                      <option value="2">2 Day Bookings</option>
-                      <option value="3">3 Day Bookings</option>
-                  </select>
-              </div>
-          `);
-      }
-  }
-
-  let summaryContainer = document.getElementById('accom-summary-container');
-  if(tab && !summaryContainer) {
-      const filterNode = document.getElementById('accom-filter-container') || tab.querySelector('.flex.flex-col.sm\\:flex-row');
-      if(filterNode) {
-          filterNode.insertAdjacentHTML('afterend', `<div id="accom-summary-container" class="mb-6"></div>`);
-          summaryContainer = document.getElementById('accom-summary-container');
-      }
-  }
-
-  // Filter Bookings Based on Selection
-  const filterVal = document.getElementById('accomDayFilter')?.value || 'all';
-  let filteredAccoms = dbAccoms;
-  
-  if (filterVal !== 'all') {
-      filteredAccoms = dbAccoms.filter(a => a.duration && a.duration.includes(filterVal));
-  }
-
-  const maxRooms = { male: 50, female: 40 };
-  const maxCapacity = { male: 50 * 3, female: 40 * 3 };
-  let maleCount = filteredAccoms.filter(a => a.wing === 'male').length;
-  let femaleCount = filteredAccoms.filter(a => a.wing === 'female').length;
-
-  if (summaryContainer) {
-      summaryContainer.innerHTML = `
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="bg-blue-900/20 border border-blue-500/30 p-4 rounded-xl">
-                  <p class="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-1">Boys Wing Status</p>
-                  <p class="text-2xl font-black text-white">${maleCount} <span class="text-sm font-medium text-zinc-400">/ ${maxCapacity.male} beds booked</span></p>
-                  <p class="text-xs text-zinc-400 mt-1">${Math.ceil(maleCount/3)} / ${maxRooms.male} rooms filled</p>
-              </div>
-              <div class="bg-pink-900/20 border border-pink-500/30 p-4 rounded-xl">
-                  <p class="text-[10px] text-pink-400 font-bold uppercase tracking-wider mb-1">Girls Wing Status</p>
-                  <p class="text-2xl font-black text-white">${femaleCount} <span class="text-sm font-medium text-zinc-400">/ ${maxCapacity.female} beds booked</span></p>
-                  <p class="text-xs text-zinc-400 mt-1">${Math.ceil(femaleCount/3)} / ${maxRooms.female} rooms filled</p>
-              </div>
-          </div>
-      `;
-  }
-  
-  let html = '';
-  if (filteredAccoms.length === 0) {
-    html = `<tr><td colspan="4" class="p-6 sm:p-8 text-center text-zinc-500 text-xs sm:text-sm italic">No bookings found for this selection.</td></tr>`;
-  } else {
-    filteredAccoms.forEach(b => {
-      html += `
-          <tr class="hover:bg-white/5 transition-colors border-b border-white/5">
-              <td class="p-3 sm:p-4 text-white text-xs sm:text-sm"><span class="font-mono text-cyan-400 block sm:inline">${b.id}</span> <span class="text-zinc-400 block sm:inline sm:ml-2">${b.name}</span></td>
-              <td class="p-3 sm:p-4 text-[10px] sm:text-xs uppercase tracking-wider text-zinc-400">${b.wing}</td>
-              <td class="p-3 sm:p-4 text-[10px] sm:text-xs font-mono text-zinc-300">${b.requested || 'None'}</td>
-              <td class="p-3 sm:p-4 text-xs sm:text-sm font-bold ${b.room ? 'text-emerald-400' : 'text-amber-400'}">${b.room ? 'Room ' + b.room : 'Pending'}</td>
-          </tr>
-      `;
-    });
-  }
-  const tableBody = document.getElementById('admin-accom-table');
-  if (tableBody) tableBody.innerHTML = html;
-}
-
-// ==========================================
-// 8. MODALS & FORMS
-// ==========================================
-function openModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    document.body.style.overflow = 'hidden'; 
-  }
-}
-
-function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if(modal) {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      
-      const anyOpen = Array.from(document.querySelectorAll('[id$="Modal"]')).some(el => el.classList.contains('flex'));
-      if (!anyOpen) document.body.style.overflow = '';
-  }
-}
-
-function openEventPopup(dateKey, index) {
-  const calEvent = calendarEvents[dateKey][index];
-  let fullEvent = null, fullCatKey = null;
-  for (const [catKey, events] of Object.entries(EVENTS_DATA)) {
-    const found = events.find(e => e.id === calEvent.id);
-    if (found) { fullEvent = found; fullCatKey = catKey; break; }
-  }
-  if (fullEvent && fullCatKey) { openEventModal(fullCatKey, fullEvent.id); } 
-  else { showMessage("Detailed view not available."); }
-}
-
-function openEventModal(catKey, evId) {
-  const ev = EVENTS_DATA[catKey].find(e => e.id === evId);
-  if (ev) {
-    currentModalEvent = ev;
-    const isFest = catKey === 'festivals';
-
-    document.getElementById('modalName').innerText = ev.name;
-    document.getElementById('modalDesc').innerText = ev.desc;
-    document.getElementById('modalPrize').innerText = ev.prize === '-' ? '-' : `₹${ev.prize}`;
-    document.getElementById('modalFee').innerText = `₹${ev.fee}`;
-    document.getElementById('modalDate').innerText = ev.date;
-    document.getElementById('modalVenue').innerText = ev.venue;
-
-    const bannerImg = document.getElementById('modalBannerImg');
-    const gradient = document.getElementById('eventModalGradient');
-    if(ev.banner) {
-        bannerImg.src = ev.banner;
-        bannerImg.classList.remove('hidden');
-        gradient.classList.add('hidden');
-    } else {
-        bannerImg.classList.add('hidden');
-        gradient.classList.remove('hidden');
-    }
-
-    const btn = document.getElementById('modalRegBtn');
-    const badge = document.getElementById('modalStatusBadge');
-    const prizeContainer = document.getElementById('modalPrizeContainer');
-    const feeContainer = document.getElementById('modalFeeContainer');
-    const footerContainer = document.getElementById('modalFooterContainer');
-
-    if (isFest) {
-        if(prizeContainer) prizeContainer.style.display = 'none';
-        if(feeContainer) feeContainer.style.display = 'none';
-        if(btn) btn.style.display = 'none';
-        if(footerContainer) footerContainer.style.display = 'none';
-        if(badge) badge.classList.add('hidden');
-        
-        // Hide Organizers completely for festivals
-        const orgContainer = document.getElementById('modalOrganizers');
-        if (orgContainer && orgContainer.parentElement) {
-            orgContainer.parentElement.style.display = 'none';
-        }
-    } else {
-        if(prizeContainer) prizeContainer.style.display = 'block';
-        if(feeContainer) feeContainer.style.display = 'block';
-        if(btn) btn.style.display = 'block';
-        if(footerContainer) footerContainer.style.display = 'flex';
-        
-        const orgContainer = document.getElementById('modalOrganizers');
-        if (orgContainer && orgContainer.parentElement) {
-            orgContainer.parentElement.style.display = 'block';
-        }
-
-        if (festStatus !== 'active' || ev.status === 'closed') {
-          btn.classList.add('opacity-50', 'cursor-not-allowed');
-          btn.innerHTML = "Registrations Closed";
-          badge.classList.remove('hidden');
-        } else {
-          btn.classList.remove('opacity-50', 'cursor-not-allowed');
-          btn.innerHTML = "Register Now";
-          badge.classList.add('hidden');
-        }
-    }
-
-    const modalScroll = document.querySelector('#eventModal .custom-scrollbar');
-    if (modalScroll) modalScroll.scrollTop = 0;
-
-    openModal('eventModal');
-    renderIcons();
-  }
-}
-
-function showTeamQr(eventId) {
-  const reg = userProfile.registrations.find(r => r.eventId === eventId);
-  if (!reg) return;
-
-  const event = Object.values(EVENTS_DATA).flat().find(e => e.id === eventId);
-
-  document.getElementById('teamQrEventName').innerText = event.name;
-  document.getElementById('teamQrName').innerText = reg.teamName || 'Individual Entry';
-
-  const qrData = reg.teamCode || userProfile.accountId;
-  document.getElementById('teamQrCodeText').innerText = qrData;
-
-  const fullUrl = `https://autumnfest.in/public.html?id=${qrData}`;
-  document.getElementById('teamQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(fullUrl)}&color=06b6d4&bgcolor=000000`;
-
-  openModal('teamQrModal');
-}
-
-function showAccomQr() {
-  if (!userProfile.accommodation) return;
-  document.getElementById('accomQrName').innerText = userProfile.name;
-
-  const qrData = `ACCOM-${userProfile.accountId}`;
-  document.getElementById('accomQrCodeText').innerText = qrData;
-
-  const fullUrl = `https://autumnfest.in/public.html?id=${qrData}`;
-  document.getElementById('accomQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(fullUrl)}&color=3b82f6&bgcolor=000000`;
-
-  openModal('accomQrModal');
-}
-
-// ==========================================
-// 9. PROFILE & REGISTRATION
-// ==========================================
-async function renderProfile() {
-  const container = document.getElementById('profile-container');
-  if (!container) return;
-  
-  // Re-fetch to ensure fresh data
-  const users = await DatabaseAPI.get('users');
-  const me = users.find(u => u.id === userProfile.accountId);
-  if(me) await populateUserProfile(me);
-
-  const confirmed = userProfile.registrations.filter(r => r.payment === 'Success' || r.payment === 'Team Paid');
-  const unfinished = userProfile.registrations.filter(r => r.payment === 'Incomplete');
-
-  let unfinishedHTML = unfinished.length > 0 ? unfinished.map(r => {
-    const event = Object.values(EVENTS_DATA).flat().find(e => e.id === r.eventId);
-    if(!event) return '';
-    const min = event.team.includes('-') ? parseInt(event.team.split('-')[0]) : parseInt(event.team);
-    const needsMembers = r.teamCode && (r.members.length + 1) < min;
-    return `
-        <div class="bg-zinc-900 border border-amber-500/20 p-4 sm:p-5 rounded-2xl flex flex-col gap-3 shadow-xl hover:border-amber-500/40 transition-all">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h4 class="font-bold text-amber-500 text-sm sm:text-base break-words w-full">${event.name}</h4>
-                    <p class="text-[8px] sm:text-[9px] text-zinc-500 uppercase mt-1 font-bold">Alert: ${needsMembers ? 'Team members need to be updated' : 'Payment not finished'}</p>
-                </div>
-                <span class="text-[8px] sm:text-[9px] font-black bg-amber-500/10 px-1.5 sm:px-2 py-0.5 rounded text-amber-500 uppercase border border-amber-500/20 tracking-widest shrink-0">PENDING</span>
-            </div>
-            <p class="text-[9px] sm:text-[10px] font-mono text-cyan-400 bg-black/40 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-white/5 tracking-widest select-all break-all">${r.teamCode || 'INDIVIDUAL ENTRY'}</p>
-            <div class="flex gap-2 mt-1">
-                <button onclick="resumeRegistration('${r.eventId}')" class="flex-1 py-2 sm:py-2.5 bg-amber-600 hover:bg-amber-500 text-amber-950 font-black rounded-lg transition text-[9px] sm:text-[10px] uppercase tracking-widest shadow-lg truncate">Complete Process</button>
-                <button onclick="dissolveTeam('${r.eventId}')" class="px-3 sm:px-4 py-2 sm:py-2.5 bg-red-900/30 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/30 font-black rounded-lg transition shadow-lg shrink-0"><i data-lucide="trash-2" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
-            </div>
-        </div>`;
-  }).join('') : `<div class="p-6 sm:p-8 text-center text-zinc-600 text-[10px] sm:text-xs italic border border-dashed border-zinc-800 rounded-2xl w-full">No pending registrations.</div>`;
-
-  let confirmedHTML = confirmed.length > 0 ? confirmed.map(r => {
-    const event = Object.values(EVENTS_DATA).flat().find(e => e.id === r.eventId);
-    if(!event) return '';
-    const memText = r.members && r.members.length > 0 ? 'You, ' + r.members.join(', ') : 'Individual';
-    const isLeader = r.leader === userProfile.accountId;
-    const roleText = isLeader ? "Team Leader" : "Team Member";
-
-    return `
-        <div class="bg-zinc-900/50 border border-emerald-500/10 p-3 sm:p-4 rounded-2xl flex items-start justify-between gap-3 sm:gap-4 hover:border-emerald-500/30 transition-all shadow-lg cursor-pointer group" onclick="showTeamQr('${r.eventId}')">
-            <div class="flex items-start gap-3 sm:gap-4 min-w-0">
-                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20 shrink-0 mt-1 group-hover:scale-110 transition"><i data-lucide="qr-code" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>
-                <div class="min-w-0">
-                    <h4 class="font-bold text-white text-xs sm:text-sm group-hover:text-cyan-400 transition truncate break-words">${event.name}</h4>
-                    <p class="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5 truncate">${event.date} • ${event.venue}</p>
-                    <p class="text-[9px] sm:text-[10px] text-cyan-400 uppercase tracking-widest mt-1 sm:mt-1.5 font-bold truncate">Team: ${r.teamName || 'Individual'} <span class="text-zinc-500 font-medium">(${roleText})</span></p>
-                    <p class="text-[8px] sm:text-[10px] text-zinc-400 uppercase tracking-widest mt-0.5 truncate">Members: ${memText}</p>
-                </div>
-            </div>
-            ${isLeader ? `<button onclick="event.stopPropagation(); dissolveTeam('${r.eventId}')" class="text-zinc-600 hover:text-red-500 p-1.5 sm:p-2 transition-colors z-10 relative shrink-0"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
-        </div>`;
-  }).join('') : `<div class="p-6 sm:p-8 text-center text-zinc-600 text-[10px] sm:text-xs italic border border-dashed border-zinc-800 rounded-2xl w-full">No events registered.</div>`;
-
-  let paymentsHTML = userProfile.payments.length > 0 ? userProfile.payments.map(p => `
-      <div class="flex justify-between items-center p-2.5 sm:p-3 bg-black/40 border border-white/5 rounded-xl gap-2">
-          <div class="min-w-0">
-              <p class="text-white text-[10px] sm:text-xs font-mono truncate">${p.id}</p>
-              <p class="text-[8px] sm:text-[10px] text-zinc-500 truncate">${p.timestamp}</p>
-          </div>
-          <div class="text-right shrink-0">
-              <p class="text-emerald-400 font-bold text-xs sm:text-sm">₹${p.amount}</p>
-              <p class="text-[8px] sm:text-[9px] text-emerald-500 uppercase tracking-widest">${p.status}</p>
-          </div>
-      </div>
-  `).join('') : `<p class="text-zinc-600 text-[10px] sm:text-xs italic text-center py-4">No payments recorded.</p>`;
-
-  let accomHTML = userProfile.accommodation ? `
-      <div class="bg-black/40 p-4 sm:p-5 rounded-2xl border border-white/5 shadow-inner">
-          <div class="flex justify-between items-start mb-2 gap-2">
-              <p class="text-white font-bold capitalize text-xs sm:text-sm break-words flex-1">${userProfile.accommodation.type} Occupancy</p>
-              <span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-[9px] sm:text-[10px] uppercase tracking-wider font-bold shrink-0">Confirmed</span>
-          </div>
-          <p class="text-[10px] sm:text-xs text-zinc-400 capitalize mb-1 truncate">${userProfile.accommodation.wing} Wing • Duration: ${userProfile.accommodation.duration}</p>
-          <p class="text-[10px] sm:text-xs text-emerald-400 font-bold mt-2 truncate">Room Assigned: ${userProfile.accommodation.roomNumber}</p>
-          <p class="text-[10px] sm:text-xs text-zinc-500 mt-2 mb-3 p-2 bg-zinc-900 rounded-lg border border-zinc-800 font-mono break-all">Requested Friends: <span class="text-zinc-300">${userProfile.accommodation.roommate}</span></p>
-          <button onclick="showAccomQr()" class="w-full py-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded-lg text-[10px] sm:text-xs font-bold transition flex items-center justify-center gap-2"><i data-lucide="qr-code" class="w-3 h-3 sm:w-4 sm:h-4"></i> View Entry QR</button>
-      </div>` : `<p class="text-zinc-600 text-[10px] sm:text-xs italic text-center py-4">No accommodation booked.</p>`;
-
-  const profileQrData = encodeURIComponent(`https://autumnfest.in/public.html?id=${userProfile.accountId}`);
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${profileQrData}&color=f43f5e&bgcolor=000000`;
-
-  container.innerHTML = `
-      <div class="lg:col-span-1 rounded-3xl p-5 sm:p-6 md:p-8 bg-zinc-900/60 backdrop-blur-xl border border-white/5 relative overflow-hidden flex flex-col items-center text-center h-fit lg:sticky lg:top-28 shadow-2xl">
-          <div class="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full border-4 border-zinc-800 overflow-hidden mb-4 sm:mb-6 shadow-2xl bg-zinc-950 flex justify-center items-center text-3xl sm:text-5xl shrink-0">
-              <img src="${userProfile.photo}" class="w-full h-full object-cover">
-          </div>
-          <h2 class="text-lg sm:text-xl md:text-2xl font-bold text-white mb-1 break-words w-full">${userProfile.name}</h2>
-          <span class="px-2 sm:px-3 py-1 bg-rose-500/20 text-rose-400 rounded-full text-[9px] sm:text-[10px] font-semibold tracking-wider border border-rose-500/30 mb-4 uppercase inline-block">ACTIVE MEMBER</span>
-          <button onclick="openProfileEdit()" class="mb-6 sm:mb-8 px-3 sm:px-4 py-1 sm:py-1.5 border border-zinc-700 text-[10px] sm:text-xs text-zinc-300 hover:text-white hover:border-white rounded-lg transition inline-block"><i data-lucide="edit-2" class="w-3 h-3 inline"></i> Edit Profile</button>
-          
-          <div class="w-full bg-black/50 border border-white/10 rounded-2xl p-4 mb-6 flex flex-col items-center shadow-inner">
-              <p class="text-[9px] sm:text-[10px] text-zinc-400 uppercase tracking-widest font-bold mb-3">Your Fest ID</p>
-              <div class="w-24 h-24 sm:w-32 sm:h-32 bg-white rounded-xl overflow-hidden mb-3 p-2 shrink-0">
-                  <img src="${qrUrl}" alt="QR Code" class="w-full h-full mix-blend-multiply">
-              </div>
-              <p class="font-mono text-cyan-400 text-xs sm:text-sm tracking-wider font-bold select-all break-all">${userProfile.accountId}</p>
-          </div>
-
-          <div class="w-full space-y-2 sm:space-y-3 text-left">
-              <div class="bg-black/30 p-3 sm:p-4 rounded-2xl border border-white/5 shadow-inner"><p class="text-[9px] sm:text-[10px] text-zinc-500 font-bold tracking-widest uppercase mb-1">Contact</p><p class="text-xs sm:text-sm font-medium text-zinc-300 break-words w-full">${userProfile.email}<br>${userProfile.phone || 'N/A'}</p></div>
-              <div class="bg-black/30 p-3 sm:p-4 rounded-2xl border border-white/5 shadow-inner"><p class="text-[9px] sm:text-[10px] text-zinc-500 font-bold tracking-widest uppercase mb-1">Details</p><p class="text-xs sm:text-sm font-medium text-zinc-300 break-words w-full">${userProfile.college}<br>${userProfile.gender}</p></div>
-          </div>
-      </div>
-      <div class="lg:col-span-2 flex flex-col gap-6 sm:gap-8 min-w-0">
-          <div class="rounded-3xl p-5 sm:p-6 md:p-8 bg-zinc-900/40 backdrop-blur-md border border-amber-500/20 flex flex-col shadow-2xl min-w-0">
-              <h3 class="text-base sm:text-lg font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3 break-words w-full"><i data-lucide="alert-circle" class="text-amber-500 w-4 h-4 sm:w-5 sm:h-5 shrink-0"></i> Unfinished Processes</h3>
-              <div class="grid grid-cols-1 gap-4">${unfinishedHTML}</div>
-          </div>
-          <div class="rounded-3xl p-5 sm:p-6 md:p-8 bg-zinc-900/40 backdrop-blur-md border border-rose-500/20 flex flex-col shadow-2xl min-w-0">
-              <h3 class="text-base sm:text-lg font-bold text-white mb-1 sm:mb-2 flex items-center gap-2 sm:gap-3 break-words w-full"><i data-lucide="calendar" class="text-rose-500 w-4 h-4 sm:w-5 sm:h-5 shrink-0"></i> Registered Events & My Teams</h3>
-              <p class="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest mb-3 sm:mb-4 break-words w-full">Click an event to view entry QR</p>
-              <div class="space-y-3 sm:space-y-4">${confirmedHTML}</div>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-              <div class="rounded-3xl p-5 sm:p-6 md:p-8 bg-zinc-900/40 backdrop-blur-md border border-white/5 flex flex-col shadow-2xl min-w-0">
-                  <h3 class="text-base sm:text-lg font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3 break-words w-full"><i data-lucide="home" class="text-blue-400 w-4 h-4 sm:w-5 sm:h-5 shrink-0"></i> Stay Details</h3>
-                  <div class="space-y-3">${accomHTML}</div>
-              </div>
-              <div class="rounded-3xl p-5 sm:p-6 md:p-8 bg-zinc-900/40 backdrop-blur-md border border-white/5 flex flex-col shadow-2xl min-w-0">
-                  <h3 class="text-base sm:text-lg font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3 break-words w-full"><i data-lucide="credit-card" class="text-emerald-400 w-4 h-4 sm:w-5 sm:h-5 shrink-0"></i> Transactions</h3>
-                  <div class="space-y-3">${paymentsHTML}</div>
-              </div>
-          </div>
-      </div>`;
-  renderIcons();
-}
-
-function openProfileEdit() {
-  document.getElementById('editName').value = userProfile.name;
-  document.getElementById('editEmail').value = userProfile.email;
-  document.getElementById('editPhone').value = userProfile.phone || "";
-  document.getElementById('editGender').value = userProfile.gender === 'Not Specified' ? 'Male' : userProfile.gender;
-  document.getElementById('editCollege').value = userProfile.college;
-  document.getElementById('editPhotoPreview').src = userProfile.photo;
-
-  openModal('profileEditModal');
-}
-
-function previewProfilePhoto(event) {
-  const file = event.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      document.getElementById('editPhotoPreview').src = e.target.result;
-    }
-    reader.readAsDataURL(file);
-  }
-}
-
-async function saveProfile() {
-  const fileInput = document.getElementById('photoUpload');
-  let finalPhotoUrl = userProfile.photo;
-
-  if (fileInput && fileInput.files.length > 0) {
-      showMessage("Uploading profile picture to Drive... Please wait.");
-      try {
-          finalPhotoUrl = await uploadFileToDrive(fileInput.files[0]);
-          if(!finalPhotoUrl) throw new Error("Upload failed");
-      } catch (e) {
-          showMessage("Photo upload failed. Changes not saved.");
-          return;
-      }
-  }
-
-  userProfile.name = document.getElementById('editName').value;
-  userProfile.phone = document.getElementById('editPhone').value;
-  userProfile.gender = document.getElementById('editGender').value;
-  userProfile.college = document.getElementById('editCollege').value;
-  userProfile.photo = finalPhotoUrl;
-  
-  await DatabaseAPI.update('users', userProfile.accountId, { 
-      name: userProfile.name, phone: userProfile.phone, gender: userProfile.gender, college: userProfile.college, photo: finalPhotoUrl
-  });
-  
-  closeModal('profileEditModal');
-  saveCache();
-  showMessage("Profile Updated Successfully!");
-  renderProfile();
-}
-
-async function dissolveTeam(eventId) {
-  userProfile.registrations = userProfile.registrations.filter(r => r.eventId !== eventId);
-  const allRegs = await DatabaseAPI.get('registrations');
-  const regDb = allRegs.find(r => r.eventId === eventId && r.leader === userProfile.accountId);
-  if(regDb) await DatabaseAPI.delete('registrations', regDb.id);
-  
-  saveCache();
-  showMessage(`Registration Removed.`);
-  renderProfile();
-}
-
-function openRegisterModal() {
-  if (festStatus !== 'active' || currentModalEvent.status === 'closed') {
-    showMessage("Registrations are closed for this event.");
-    return;
-  }
-
-  closeModal('eventModal');
-  const ev = currentModalEvent;
-  currentPendingFee = ev.fee;
-
-  const teamStr = ev.team.toString();
-  if (teamStr.includes('-')) {
-    const parts = teamStr.split('-');
-    currentRegMin = parseInt(parts[0]);
-    currentRegMax = parseInt(parts[1]);
-  } else {
-    currentRegMin = parseInt(teamStr);
-    currentRegMax = parseInt(teamStr);
-  }
-
-  teamMemberCount = 1;
-  regMode = 'create';
-  document.getElementById('regEventName').innerText = ev.name;
-  document.getElementById('regTotalFee').innerText = `₹${ev.fee}`;
-
-  const tabs = document.getElementById('regTabs');
-  if (currentRegMax > 1) {
-    tabs.classList.remove('hidden'); tabs.classList.add('flex');
-    setRegMode('create');
-  } else {
-    tabs.classList.add('hidden'); tabs.classList.remove('flex');
-    renderIndividualForm();
-  }
-
-  const regScroll = document.getElementById('regFormContainer');
-  if (regScroll) regScroll.scrollTop = 0;
-
-  openModal('registerModal');
-  renderIcons();
-}
-
-function resumeRegistration(eventId) {
-  const reg = userProfile.registrations.find(r => r.eventId === eventId);
-  currentModalEvent = Object.values(EVENTS_DATA).flat().find(e => e.id === eventId);
-  openRegisterModal();
-  if (reg && reg.teamCode) {
-    setRegMode('create');
-    setTimeout(() => {
-      const inp = document.getElementById('teamNameInput');
-      if (inp) inp.value = reg.teamName;
-      confirmTeamName();
-    }, 10);
-  }
-}
-
-function setRegMode(mode) {
-  regMode = mode;
-  const tabCreate = document.getElementById('tabCreate');
-  const tabJoin = document.getElementById('tabJoin');
-  if (mode === 'create') {
-    tabCreate.className = "flex-1 py-3 sm:py-4 text-xs sm:text-sm font-bold uppercase tracking-widest transition-all border-b-2 border-rose-600 text-rose-500 px-2 min-w-0";
-    tabJoin.className = "flex-1 py-3 sm:py-4 text-xs sm:text-sm font-bold uppercase tracking-widest transition-all border-b-2 border-transparent text-zinc-500 hover:text-zinc-300 px-2 min-w-0";
-    renderCreateForm();
-  } else {
-    tabJoin.className = "flex-1 py-3 sm:py-4 text-xs sm:text-sm font-bold uppercase tracking-widest transition-all border-b-2 border-rose-600 text-rose-500 px-2 min-w-0";
-    tabCreate.className = "flex-1 py-3 sm:py-4 text-xs sm:text-sm font-bold uppercase tracking-widest transition-all border-b-2 border-transparent text-zinc-500 hover:text-zinc-300 px-2 min-w-0";
-    renderJoinForm();
-  }
-  
-  const regScroll = document.getElementById('regFormContainer');
-  if (regScroll) regScroll.scrollTop = 0;
-
-  renderIcons();
-}
-
-function renderCreateForm() {
-  teamMemberCount = 1;
-  const existingReg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
-  if (existingReg && existingReg.teamCode) { renderTeamBuildSection(existingReg.teamCode); return; }
-  document.getElementById('regFormContainer').innerHTML = `
-        <form id="teamNameSection" onsubmit="event.preventDefault(); confirmTeamName();" class="mb-4 sm:mb-6 animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow flex flex-col justify-center min-w-0">
-            <div class="w-full max-w-sm mx-auto min-w-0">
-                <p class="text-rose-400 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-3 flex items-center justify-center gap-2 w-full"><i data-lucide="shield-plus" class="w-4 h-4 shrink-0"></i> <span class="truncate">Step 1: Create Your Team</span></p>
-                <input type="text" id="teamNameInput" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-center text-sm sm:text-base focus:outline-none focus:border-rose-500 transition mb-4 shadow-inner min-w-0" placeholder="Enter Team Name" required>
-                <button type="submit" class="w-full py-3 sm:py-4 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition text-xs sm:text-sm uppercase tracking-widest shadow-[0_0_15px_rgba(225,29,72,0.3)]">Generate Team Code</button>
-            </div>
-        </form>`;
-  document.getElementById('regFooterBtns').innerHTML = `<p class="text-zinc-500 text-[10px] sm:text-xs font-medium italic w-full text-right sm:text-left truncate">Complete Step 1</p>`;
-  renderIcons();
-}
-
-function confirmTeamName() {
-  const name = document.getElementById('teamNameInput').value;
-  if (!name) { showMessage("Please enter a team name!"); return; }
-  let reg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
-  if (!reg) {
-    const code = `AUT-TEAM-${Math.floor(1000 + Math.random() * 9000)}`;
-    reg = { eventId: currentModalEvent.id, teamName: name, teamCode: code, members: [], payment: 'Incomplete', leader: userProfile.accountId };
-    userProfile.registrations.push(reg);
-  } else { reg.teamName = name; }
-  saveCache();
-  renderTeamBuildSection(reg.teamCode);
-  showMessage("Team Code Generated & Saved!");
-}
-
-function renderTeamBuildSection(code) {
-  document.getElementById('regFormContainer').innerHTML = `
-      <div class="mb-4 sm:mb-6 animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow flex flex-col min-w-0">
-          <div class="bg-cyan-500/10 border border-cyan-500/30 rounded-2xl p-4 sm:p-5 mb-4 sm:mb-6 text-center shadow-inner w-full min-w-0"><p class="text-xs sm:text-sm text-cyan-400 uppercase tracking-widest font-bold mb-1 truncate">Your Team Code</p><p class="text-xl sm:text-3xl font-mono font-bold text-white tracking-[0.1em] sm:tracking-[0.2em] break-words">${code}</p></div>
-          <div class="mb-3 sm:mb-4 flex justify-between items-center border-b border-zinc-800 pb-2 gap-2 w-full min-w-0"><label class="block text-[9px] sm:text-[10px] uppercase text-zinc-500 font-bold ml-1 flex-1 truncate">Invite Members</label><span class="text-[10px] sm:text-xs text-zinc-400 font-bold shrink-0"><span id="memCountText">1</span> / ${currentRegMax}</span></div>
-          <div id="teamMembersList" class="space-y-2 sm:space-y-3 mb-4 w-full min-w-0">
-              <div class="bg-zinc-900/50 border border-rose-500/30 rounded-xl p-3 sm:p-4 flex items-center justify-between shadow-inner w-full min-w-0">
-                  <div class="flex items-center gap-3 sm:gap-4 w-full min-w-0">
-                      <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0"><i data-lucide="crown" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>
-                      <div class="min-w-0 flex-grow"><p class="text-xs sm:text-sm text-white font-bold truncate">You (Leader)</p></div>
-                  </div>
-              </div>
-          </div>
-          <button type="button" id="addMemberBtn" onclick="addTeamMemberField(true)" class="mt-4 w-full py-3 sm:py-4 rounded-xl border border-dashed border-zinc-600 text-zinc-400 hover:text-white hover:border-zinc-400 transition flex items-center justify-center gap-2 text-xs sm:text-sm font-medium shrink-0"><i data-lucide="plus" class="w-4 h-4 shrink-0"></i> <span class="truncate">Add Teammate by ID</span></button>
-      </div>`;
-  document.getElementById('regFooterBtns').innerHTML = `<button onclick="processPayment()" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(37,99,235,0.4)] text-center shrink-0">Pay Now</button>`;
-  teamMemberCount = 1;
-  const reg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
-  if (reg && reg.members.length > 0) {
-    reg.members.forEach((mId, index) => {
-      if (teamMemberCount < currentRegMax) addTeamMemberField(false, mId);
-    });
-  } else window.updateMemberCount();
-  renderIcons();
-}
-
-function renderJoinForm() {
-  document.getElementById('regFormContainer').innerHTML = `
-      <form id="joinTeamForm" onsubmit="event.preventDefault(); window.processJoinTeam();" class="flex flex-col items-center justify-start py-6 sm:py-10 mt-2 sm:mt-6 text-center animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow min-w-0">
-          <div class="w-16 h-16 sm:w-20 sm:h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-4 sm:mb-6 shrink-0 shadow-inner"><i data-lucide="key" class="w-8 h-8 sm:w-10 sm:h-10 text-amber-500"></i></div>
-          <h4 class="text-xl sm:text-2xl font-black text-white mb-3 font-sans tracking-wide w-full break-words">Join a Team</h4>
-          <p class="text-xs sm:text-sm text-zinc-400 max-w-xs mx-auto mb-6 break-words w-full">Enter the team code provided by your team leader.</p>
-          <input type="text" id="joinTeamInput" class="w-full max-w-sm bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-center font-mono text-sm sm:text-lg tracking-[0.1em] sm:tracking-[0.2em] focus:outline-none focus:border-amber-500 shadow-inner transition min-w-0" placeholder="AUT-TEAM-XXXX" required>
-      </form>`;
-  document.getElementById('regFooterBtns').innerHTML = `<button type="submit" form="joinTeamForm" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(245,158,11,0.4)] text-center shrink-0">Join Team</button>`;
-  renderIcons();
-}
-
-// REAL Process Join Team Logic
-window.processJoinTeam = async function() {
-    const code = document.getElementById('joinTeamInput').value.trim();
-    if (!code) return;
-
-    const allRegs = await DatabaseAPI.get('registrations');
-    const teamReg = allRegs.find(r => r.teamCode === code);
-
-    if (!teamReg) {
-        showMessage("Invalid Team Code. Please check and try again.");
-        return;
-    }
-
-    if (teamReg.leader === userProfile.accountId || teamReg.members.includes(userProfile.accountId)) {
-        showMessage("You are already in this team!");
-        return;
-    }
-
-    let targetEvent = null;
-    for (const cat of Object.values(EVENTS_DATA)) {
-        const found = cat.find(e => e.id === teamReg.eventId);
-        if (found) { targetEvent = found; break; }
-    }
-
-    if (!targetEvent) return;
-
-    let maxMems = 1;
-    if (targetEvent.team.includes('-')) {
-function closeCategory() {
-  document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active-category'));
-  const wrapper = document.getElementById('events-list-wrapper');
-  const placeholder = document.getElementById('events-placeholder');
-  wrapper.classList.remove('opacity-100');
-  wrapper.classList.add('opacity-0');
-  setTimeout(() => {
-    wrapper.classList.remove('flex');
-    wrapper.classList.add('hidden');
-    placeholder.classList.remove('hidden');
-    placeholder.classList.add('flex');
-    setTimeout(() => { 
-        placeholder.classList.remove('opacity-0'); 
-        placeholder.classList.add('opacity-100'); 
-        
-        if(window.innerWidth < 1024) {
-            setTimeout(() => {
-                const orbit = document.querySelector('.orbit-container');
-                if(orbit) {
-                    orbit.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 50);
-        }
-    }, 10);
-  }, 300);
+  document.getElementById('events-list-wrapper').classList.add('hidden');
+  document.getElementById('events-placeholder').classList.remove('hidden');
 }
 
 // ==========================================
@@ -2493,6 +1737,143 @@ window.renderAdminAccomTable = async function() {
 }
 
 // ==========================================
+// 8. MODALS & FORMS
+// ==========================================
+function openModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden'; 
+  }
+}
+
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if(modal) {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      
+      const anyOpen = Array.from(document.querySelectorAll('[id$="Modal"]')).some(el => el.classList.contains('flex'));
+      if (!anyOpen) document.body.style.overflow = '';
+  }
+}
+
+function openEventPopup(dateKey, index) {
+  const calEvent = calendarEvents[dateKey][index];
+  let fullEvent = null, fullCatKey = null;
+  for (const [catKey, events] of Object.entries(EVENTS_DATA)) {
+    const found = events.find(e => e.id === calEvent.id);
+    if (found) { fullEvent = found; fullCatKey = catKey; break; }
+  }
+  if (fullEvent && fullCatKey) { openEventModal(fullCatKey, fullEvent.id); } 
+  else { showMessage("Detailed view not available."); }
+}
+
+function openEventModal(catKey, evId) {
+  const ev = EVENTS_DATA[catKey].find(e => e.id === evId);
+  if (ev) {
+    currentModalEvent = ev;
+    const isFest = catKey === 'festivals';
+
+    document.getElementById('modalName').innerText = ev.name;
+    document.getElementById('modalDesc').innerText = ev.desc;
+    document.getElementById('modalPrize').innerText = ev.prize === '-' ? '-' : `₹${ev.prize}`;
+    document.getElementById('modalFee').innerText = `₹${ev.fee}`;
+    document.getElementById('modalDate').innerText = ev.date;
+    document.getElementById('modalVenue').innerText = ev.venue;
+
+    const bannerImg = document.getElementById('modalBannerImg');
+    const gradient = document.getElementById('eventModalGradient');
+    if(ev.banner) {
+        bannerImg.src = ev.banner;
+        bannerImg.classList.remove('hidden');
+        gradient.classList.add('hidden');
+    } else {
+        bannerImg.classList.add('hidden');
+        gradient.classList.remove('hidden');
+    }
+
+    const btn = document.getElementById('modalRegBtn');
+    const badge = document.getElementById('modalStatusBadge');
+    const prizeContainer = document.getElementById('modalPrizeContainer');
+    const feeContainer = document.getElementById('modalFeeContainer');
+    const footerContainer = document.getElementById('modalFooterContainer');
+
+    if (isFest) {
+        if(prizeContainer) prizeContainer.style.display = 'none';
+        if(feeContainer) feeContainer.style.display = 'none';
+        if(btn) btn.style.display = 'none';
+        if(footerContainer) footerContainer.style.display = 'none';
+        if(badge) badge.classList.add('hidden');
+        
+        // Hide Organizers completely for festivals
+        const orgContainer = document.getElementById('modalOrganizers');
+        if (orgContainer && orgContainer.parentElement) {
+            orgContainer.parentElement.style.display = 'none';
+        }
+    } else {
+        if(prizeContainer) prizeContainer.style.display = 'block';
+        if(feeContainer) feeContainer.style.display = 'block';
+        if(btn) btn.style.display = 'block';
+        if(footerContainer) footerContainer.style.display = 'flex';
+        
+        const orgContainer = document.getElementById('modalOrganizers');
+        if (orgContainer && orgContainer.parentElement) {
+            orgContainer.parentElement.style.display = 'block';
+        }
+
+        if (festStatus !== 'active' || ev.status === 'closed') {
+          btn.classList.add('opacity-50', 'cursor-not-allowed');
+          btn.innerHTML = "Registrations Closed";
+          badge.classList.remove('hidden');
+        } else {
+          btn.classList.remove('opacity-50', 'cursor-not-allowed');
+          btn.innerHTML = "Register Now";
+          badge.classList.add('hidden');
+        }
+    }
+
+    const modalScroll = document.querySelector('#eventModal .custom-scrollbar');
+    if (modalScroll) modalScroll.scrollTop = 0;
+
+    openModal('eventModal');
+    renderIcons();
+  }
+}
+
+function showTeamQr(eventId) {
+  const reg = userProfile.registrations.find(r => r.eventId === eventId);
+  if (!reg) return;
+
+  const event = Object.values(EVENTS_DATA).flat().find(e => e.id === eventId);
+
+  document.getElementById('teamQrEventName').innerText = event.name;
+  document.getElementById('teamQrName').innerText = reg.teamName || 'Individual Entry';
+
+  const qrData = reg.teamCode || userProfile.accountId;
+  document.getElementById('teamQrCodeText').innerText = qrData;
+
+  const fullUrl = `https://autumnfest.in/public.html?id=${qrData}`;
+  document.getElementById('teamQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(fullUrl)}&color=06b6d4&bgcolor=000000`;
+
+  openModal('teamQrModal');
+}
+
+function showAccomQr() {
+  if (!userProfile.accommodation) return;
+  document.getElementById('accomQrName').innerText = userProfile.name;
+
+  const qrData = `ACCOM-${userProfile.accountId}`;
+  document.getElementById('accomQrCodeText').innerText = qrData;
+
+  const fullUrl = `https://autumnfest.in/public.html?id=${qrData}`;
+  document.getElementById('accomQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(fullUrl)}&color=3b82f6&bgcolor=000000`;
+
+  openModal('accomQrModal');
+}
+
+// ==========================================
 // 9. PROFILE & REGISTRATION
 // ==========================================
 async function renderProfile() {
@@ -2639,6 +2020,602 @@ async function renderProfile() {
 }
 
 function openProfileEdit() {
+  document.getElementById('editName').value = userProfile.name;
+  document.getElementById('editEmail').value = userProfile.email;
+  document.getElementById('editPhone').value = userProfile.phone || "";
+  document.getElementById('editGender').value = userProfile.gender === 'Not Specified' ? 'Male' : userProfile.gender;
+  document.getElementById('editCollege').value = userProfile.college;
+  document.getElementById('editPhotoPreview').src = userProfile.photo;
+
+  openModal('profileEditModal');
+}
+
+function previewProfilePhoto(event) {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      document.getElementById('editPhotoPreview').src = e.target.result;
+    }
+    reader.readAsDataURL(file);
+  }
+}
+
+async function saveProfile() {
+  const fileInput = document.getElementById('photoUpload');
+  let finalPhotoUrl = userProfile.photo;
+
+  if (fileInput && fileInput.files.length > 0) {
+      showMessage("Uploading profile picture to Drive... Please wait.");
+      try {
+          finalPhotoUrl = await uploadFileToDrive(fileInput.files[0]);
+          if(!finalPhotoUrl) throw new Error("Upload failed");
+      } catch (e) {
+          showMessage("Photo upload failed. Changes not saved.");
+          return;
+      }
+  }
+
+  userProfile.name = document.getElementById('editName').value;
+  userProfile.phone = document.getElementById('editPhone').value;
+  userProfile.gender = document.getElementById('editGender').value;
+  userProfile.college = document.getElementById('editCollege').value;
+  userProfile.photo = finalPhotoUrl;
+  
+  await DatabaseAPI.update('users', userProfile.accountId, { 
+      name: userProfile.name, phone: userProfile.phone, gender: userProfile.gender, college: userProfile.college, photo: finalPhotoUrl
+  });
+  
+  closeModal('profileEditModal');
+  saveCache();
+  showMessage("Profile Updated Successfully!");
+  renderProfile();
+}
+
+async function dissolveTeam(eventId) {
+  userProfile.registrations = userProfile.registrations.filter(r => r.eventId !== eventId);
+  const allRegs = await DatabaseAPI.get('registrations');
+  const regDb = allRegs.find(r => r.eventId === eventId && r.leader === userProfile.accountId);
+  if(regDb) await DatabaseAPI.delete('registrations', regDb.id);
+  
+  saveCache();
+  showMessage(`Registration Removed.`);
+  renderProfile();
+}
+
+function openRegisterModal() {
+  if (festStatus !== 'active' || currentModalEvent.status === 'closed') {
+    showMessage("Registrations are closed for this event.");
+    return;
+  }
+
+  closeModal('eventModal');
+  const ev = currentModalEvent;
+  currentPendingFee = ev.fee;
+
+  const teamStr = ev.team.toString();
+  if (teamStr.includes('-')) {
+    const parts = teamStr.split('-');
+    currentRegMin = parseInt(parts[0]);
+    currentRegMax = parseInt(parts[1]);
+  } else {
+    currentRegMin = parseInt(teamStr);
+    currentRegMax = parseInt(teamStr);
+  }
+
+  teamMemberCount = 1;
+  regMode = 'create';
+  document.getElementById('regEventName').innerText = ev.name;
+  document.getElementById('regTotalFee').innerText = `₹${ev.fee}`;
+
+  const tabs = document.getElementById('regTabs');
+  if (currentRegMax > 1) {
+    tabs.classList.remove('hidden'); tabs.classList.add('flex');
+    setRegMode('create');
+  } else {
+    tabs.classList.add('hidden'); tabs.classList.remove('flex');
+    renderIndividualForm();
+  }
+
+  const regScroll = document.getElementById('regFormContainer');
+  if (regScroll) regScroll.scrollTop = 0;
+
+  openModal('registerModal');
+  renderIcons();
+}
+
+function resumeRegistration(eventId) {
+  const reg = userProfile.registrations.find(r => r.eventId === eventId);
+  currentModalEvent = Object.values(EVENTS_DATA).flat().find(e => e.id === eventId);
+  openRegisterModal();
+  if (reg && reg.teamCode) {
+    setRegMode('create');
+    setTimeout(() => {
+      const inp = document.getElementById('teamNameInput');
+      if (inp) inp.value = reg.teamName;
+      confirmTeamName();
+    }, 10);
+  }
+}
+
+function setRegMode(mode) {
+  regMode = mode;
+  const tabCreate = document.getElementById('tabCreate');
+  const tabJoin = document.getElementById('tabJoin');
+  if (mode === 'create') {
+    tabCreate.className = "flex-1 py-3 sm:py-4 text-xs sm:text-sm font-bold uppercase tracking-widest transition-all border-b-2 border-rose-600 text-rose-500 px-2 min-w-0";
+    tabJoin.className = "flex-1 py-3 sm:py-4 text-xs sm:text-sm font-bold uppercase tracking-widest transition-all border-b-2 border-transparent text-zinc-500 hover:text-zinc-300 px-2 min-w-0";
+    renderCreateForm();
+  } else {
+    tabJoin.className = "flex-1 py-3 sm:py-4 text-xs sm:text-sm font-bold uppercase tracking-widest transition-all border-b-2 border-rose-600 text-rose-500 px-2 min-w-0";
+    tabCreate.className = "flex-1 py-3 sm:py-4 text-xs sm:text-sm font-bold uppercase tracking-widest transition-all border-b-2 border-transparent text-zinc-500 hover:text-zinc-300 px-2 min-w-0";
+    renderJoinForm();
+  }
+  
+  const regScroll = document.getElementById('regFormContainer');
+  if (regScroll) regScroll.scrollTop = 0;
+
+  renderIcons();
+}
+
+function renderCreateForm() {
+  teamMemberCount = 1;
+  const existingReg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
+  if (existingReg && existingReg.teamCode) { renderTeamBuildSection(existingReg.teamCode); return; }
+  document.getElementById('regFormContainer').innerHTML = `
+        <form id="teamNameSection" onsubmit="event.preventDefault(); confirmTeamName();" class="mb-4 sm:mb-6 animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow flex flex-col justify-center min-w-0">
+            <div class="w-full max-w-sm mx-auto min-w-0">
+                <p class="text-rose-400 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-3 flex items-center justify-center gap-2 w-full"><i data-lucide="shield-plus" class="w-4 h-4 shrink-0"></i> <span class="truncate">Step 1: Create Your Team</span></p>
+                <input type="text" id="teamNameInput" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-center text-sm sm:text-base focus:outline-none focus:border-rose-500 transition mb-4 shadow-inner min-w-0" placeholder="Enter Team Name" required>
+                <button type="submit" class="w-full py-3 sm:py-4 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition text-xs sm:text-sm uppercase tracking-widest shadow-[0_0_15px_rgba(225,29,72,0.3)]">Generate Team Code</button>
+            </div>
+        </form>`;
+  document.getElementById('regFooterBtns').innerHTML = `<p class="text-zinc-500 text-[10px] sm:text-xs font-medium italic w-full text-right sm:text-left truncate">Complete Step 1</p>`;
+  renderIcons();
+}
+
+function confirmTeamName() {
+  const name = document.getElementById('teamNameInput').value;
+  if (!name) { showMessage("Please enter a team name!"); return; }
+  let reg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
+  if (!reg) {
+    const code = `AUT-TEAM-${Math.floor(1000 + Math.random() * 9000)}`;
+    reg = { eventId: currentModalEvent.id, teamName: name, teamCode: code, members: [], payment: 'Incomplete', leader: userProfile.accountId };
+    userProfile.registrations.push(reg);
+  } else { reg.teamName = name; }
+  saveCache();
+  renderTeamBuildSection(reg.teamCode);
+  showMessage("Team Code Generated & Saved!");
+}
+
+function renderTeamBuildSection(code) {
+  document.getElementById('regFormContainer').innerHTML = `
+      <div class="mb-4 sm:mb-6 animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow flex flex-col min-w-0">
+          <div class="bg-cyan-500/10 border border-cyan-500/30 rounded-2xl p-4 sm:p-5 mb-4 sm:mb-6 text-center shadow-inner w-full min-w-0"><p class="text-xs sm:text-sm text-cyan-400 uppercase tracking-widest font-bold mb-1 truncate">Your Team Code</p><p class="text-xl sm:text-3xl font-mono font-bold text-white tracking-[0.1em] sm:tracking-[0.2em] break-words">${code}</p></div>
+          <div class="mb-3 sm:mb-4 flex justify-between items-center border-b border-zinc-800 pb-2 gap-2 w-full min-w-0"><label class="block text-[9px] sm:text-[10px] uppercase text-zinc-500 font-bold ml-1 flex-1 truncate">Invite Members</label><span class="text-[10px] sm:text-xs text-zinc-400 font-bold shrink-0"><span id="memCountText">1</span> / ${currentRegMax}</span></div>
+          <div id="teamMembersList" class="space-y-2 sm:space-y-3 mb-4 w-full min-w-0">
+              <div class="bg-zinc-900/50 border border-rose-500/30 rounded-xl p-3 sm:p-4 flex items-center justify-between shadow-inner w-full min-w-0">
+                  <div class="flex items-center gap-3 sm:gap-4 w-full min-w-0">
+                      <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0"><i data-lucide="crown" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>
+                      <div class="min-w-0 flex-grow"><p class="text-xs sm:text-sm text-white font-bold truncate">You (Leader)</p></div>
+                  </div>
+              </div>
+          </div>
+          <button type="button" id="addMemberBtn" onclick="addTeamMemberField(true)" class="mt-4 w-full py-3 sm:py-4 rounded-xl border border-dashed border-zinc-600 text-zinc-400 hover:text-white hover:border-zinc-400 transition flex items-center justify-center gap-2 text-xs sm:text-sm font-medium shrink-0"><i data-lucide="plus" class="w-4 h-4 shrink-0"></i> <span class="truncate">Add Teammate by ID</span></button>
+      </div>`;
+  document.getElementById('regFooterBtns').innerHTML = `<button onclick="processPayment()" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(37,99,235,0.4)] text-center shrink-0">Pay Now</button>`;
+  teamMemberCount = 1;
+  const reg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
+  if (reg && reg.members.length > 0) {
+    reg.members.forEach((mId, index) => {
+      if (teamMemberCount < currentRegMax) addTeamMemberField(false, mId);
+    });
+  } else window.updateMemberCount();
+  renderIcons();
+}
+
+function renderJoinForm() {
+  document.getElementById('regFormContainer').innerHTML = `
+      <form id="joinTeamForm" onsubmit="event.preventDefault(); window.processJoinTeam();" class="flex flex-col items-center justify-start py-6 sm:py-10 mt-2 sm:mt-6 text-center animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow min-w-0">
+          <div class="w-16 h-16 sm:w-20 sm:h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-4 sm:mb-6 shrink-0 shadow-inner"><i data-lucide="key" class="w-8 h-8 sm:w-10 sm:h-10 text-amber-500"></i></div>
+          <h4 class="text-xl sm:text-2xl font-black text-white mb-3 font-sans tracking-wide w-full break-words">Join a Team</h4>
+          <p class="text-xs sm:text-sm text-zinc-400 max-w-xs mx-auto mb-6 break-words w-full">Enter the team code provided by your team leader.</p>
+          <input type="text" id="joinTeamInput" class="w-full max-w-sm bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-center font-mono text-sm sm:text-lg tracking-[0.1em] sm:tracking-[0.2em] focus:outline-none focus:border-amber-500 shadow-inner transition min-w-0" placeholder="AUT-TEAM-XXXX" required>
+      </form>`;
+  document.getElementById('regFooterBtns').innerHTML = `<button type="submit" form="joinTeamForm" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(245,158,11,0.4)] text-center shrink-0">Join Team</button>`;
+  renderIcons();
+}
+
+window.processJoinTeam = async function() {
+    const code = document.getElementById('joinTeamInput').value.trim();
+    if (!code) return;
+
+    const allRegs = await DatabaseAPI.get('registrations');
+    const teamReg = allRegs.find(r => r.teamCode === code);
+
+    if (!teamReg) {
+        showMessage("Invalid Team Code. Please check and try again.");
+        return;
+    }
+
+    if (teamReg.leader === userProfile.accountId || teamReg.members.includes(userProfile.accountId)) {
+        showMessage("You are already in this team!");
+        return;
+    }
+
+    let targetEvent = null;
+    for (const cat of Object.values(EVENTS_DATA)) {
+        const found = cat.find(e => e.id === teamReg.eventId);
+        if (found) { targetEvent = found; break; }
+    }
+
+    if (!targetEvent) return;
+
+    let maxMems = 1;
+    if (targetEvent.team.includes('-')) {
+        maxMems = parseInt(targetEvent.team.split('-')[1]);
+    } else {
+        maxMems = parseInt(targetEvent.team);
+    }
+
+    if (teamReg.members.length + 1 >= maxMems) {
+        showMessage("This team is already full!");
+        return;
+    }
+
+    teamReg.members.push(userProfile.accountId);
+    await DatabaseAPI.update('registrations', teamReg.id, { members: teamReg.members });
+
+    userProfile.registrations.push({
+        eventId: teamReg.eventId,
+        teamName: teamReg.teamName,
+        teamCode: teamReg.teamCode,
+        members: teamReg.members,
+        payment: 'Team Paid' 
+    });
+    saveCache();
+
+    closeModal('registerModal');
+    showMessage(`Successfully joined ${teamReg.teamName}!`);
+    if (window.location.pathname.includes('profile')) {
+        renderProfile();
+    } else {
+        navigate('profile');
+    }
+};
+
+function renderIndividualForm() {
+  document.getElementById('regFormContainer').innerHTML = `
+      <div class="flex flex-col items-center justify-start py-8 sm:py-10 text-center animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow min-w-0">
+          <div class="w-20 h-20 sm:w-24 sm:h-24 bg-blue-500/10 rounded-full flex items-center justify-center mb-6 shrink-0 shadow-inner">
+              <i data-lucide="user" class="w-10 h-10 sm:w-12 sm:h-12 text-blue-500"></i>
+          </div>
+          <h4 class="text-2xl sm:text-3xl font-black text-white mb-3 tracking-wide font-sans w-full break-words">Individual Registration</h4>
+          <p class="text-xs sm:text-sm text-zinc-400 max-w-sm mx-auto break-words w-full">You are registering as an individual. Proceed to pay the fee and confirm your spot.</p>
+      </div>`;
+  document.getElementById('regFooterBtns').innerHTML = `<button onclick="processPayment()" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(37,99,235,0.4)] text-center shrink-0">Pay Now</button>`;
+  renderIcons();
+}
+
+window.addTeamMemberField = function(pushToArray = true, initialValue = "") {
+  if (teamMemberCount >= currentRegMax) { showMessage(`Max size ${currentRegMax}.`); return; }
+  teamMemberCount++;
+
+  const id = `member-${teamMemberCount}`;
+  const displayVal = initialValue !== "Pending" ? initialValue : "";
+
+  const div = document.createElement('div');
+  div.id = id; div.className = 'flex items-center gap-2 sm:gap-3 animate-[fadeInSlide_0.2s_ease-out] w-full min-w-0';
+  div.innerHTML = `
+      <input type="text" id="input-${id}" placeholder="Email or ID" value="${displayVal}" class="team-member-input flex-grow min-w-0 py-3 sm:py-4 bg-black/40 border border-white/10 rounded-xl text-white px-4 text-xs sm:text-sm focus:outline-none focus:border-rose-500 shadow-inner" required onchange="saveTeamMembers()">
+      <button type="button" onclick="sendTeamInvite('input-${id}')" class="w-12 h-12 sm:w-[52px] sm:h-[52px] bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-xl flex items-center justify-center shrink-0 transition" title="Send Email Invite"><i data-lucide="mail" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
+      <button type="button" onclick="removeTeamMemberField('${id}')" class="w-12 h-12 sm:w-[52px] sm:h-[52px] bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl flex items-center justify-center shrink-0 transition"><i data-lucide="trash-2" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>`;
+  document.getElementById('teamMembersList').appendChild(div);
+
+  if (pushToArray) {
+    saveTeamMembers();
+  }
+  window.updateMemberCount();
+  renderIcons();
+}
+
+window.updateMemberCount = function() {
+  const memCountText = document.getElementById('memCountText');
+  if(memCountText) memCountText.innerText = teamMemberCount;
+  const addBtn = document.getElementById('addMemberBtn');
+  if (addBtn) addBtn.style.display = teamMemberCount >= currentRegMax ? 'none' : 'flex';
+}
+
+function sendTeamInvite(inputId) {
+    const inputEl = document.getElementById(inputId);
+    if (!inputEl || !inputEl.value) {
+        showMessage("Please enter an email or Account ID to invite.");
+        return;
+    }
+    let reg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
+    const code = reg && reg.teamCode ? reg.teamCode : 'PENDING';
+    
+    showMessage(`Invite sent! When ${inputEl.value} clicks "Join" in their email, they will be automatically added to the team.`);
+}
+
+function saveTeamMembers() {
+  let reg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
+  if (reg) {
+    const inputs = document.querySelectorAll('.team-member-input');
+    reg.members = Array.from(inputs).map(inp => inp.value.trim() || 'Pending');
+    saveCache();
+  }
+}
+
+function removeTeamMemberField(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.remove(); teamMemberCount--;
+    saveTeamMembers();
+    window.updateMemberCount();
+  }
+}
+
+// REAL Razorpay Integration
+function initRazorpayMock(amount, successMsg, callback) {
+    pendingRzpAmount = amount;
+    pendingRzpSuccessMsg = successMsg;
+    pendingRzpCallback = callback;
+    document.getElementById('rzpAmountDisplay').innerText = `₹${amount}`;
+    
+    const rzpLoader = document.getElementById('rzpLoader');
+    if (rzpLoader) {
+        rzpLoader.classList.add('hidden');
+        rzpLoader.classList.remove('flex');
+    }
+    
+    openModal('razorpayModal');
+}
+
+function confirmMockPayment() {
+    const loader = document.getElementById('rzpLoader');
+    if(loader) {
+        loader.classList.remove('hidden');
+        loader.classList.add('flex');
+    }
+    
+    setTimeout(async () => {
+        closeModal('razorpayModal');
+        
+        const paymentId = 'pay_' + Math.random().toString(36).substr(2, 9);
+        
+        const pData = {
+            id: paymentId,
+            amount: pendingRzpAmount,
+            status: 'Success',
+            timestamp: new Date().toLocaleString(),
+            user: userProfile.accountId
+        };
+        userProfile.payments.push(pData);
+        await DatabaseAPI.add('payments', pData);
+
+        saveCache();
+        showMessage(pendingRzpSuccessMsg);
+        if (pendingRzpCallback) pendingRzpCallback(paymentId);
+    }, 1500);
+}
+
+function processRazorpayPayment(amount, successMsg, callback) {
+    if(amount === 0) {
+        callback(`FREE_${Math.random().toString(36).substr(2, 9)}`);
+        return;
+    }
+    
+    const API_KEY = "YOUR_TEST_KEY_HERE"; 
+    
+    if (API_KEY === "YOUR_TEST_KEY_HERE" || typeof window.Razorpay === 'undefined') {
+        initRazorpayMock(amount, successMsg, callback);
+        return;
+    }
+
+    var options = {
+        "key": API_KEY, // Test key
+        "amount": amount * 100, 
+        "currency": "INR",
+        "name": "Autumn Fest 2026",
+        "description": "Registration Fee",
+        "image": "https://autumnfest.in/logo.png",
+        "handler": async function (response){
+            const paymentId = response.razorpay_payment_id;
+            
+            const pData = {
+                id: paymentId,
+                amount: amount,
+                status: 'Success',
+                timestamp: new Date().toLocaleString(),
+                user: userProfile.accountId
+            };
+            userProfile.payments.push(pData);
+            await DatabaseAPI.add('payments', pData);
+
+            saveCache();
+            showMessage(successMsg);
+            if (callback) callback(paymentId);
+        },
+        "prefill": {
+            "name": userProfile.name,
+            "email": userProfile.email,
+            "contact": userProfile.phone || "9999999999"
+        },
+        "theme": { "color": "#f43f5e" }
+    };
+    try {
+        var rzp1 = new window.Razorpay(options);
+        rzp1.on('payment.failed', function (response){
+            showMessage("Payment Failed: " + response.error.description);
+        });
+        rzp1.open();
+    } catch(e) {
+        console.error(e);
+        initRazorpayMock(amount, successMsg, callback);
+    }
+}
+
+function processPayment() {
+  if (currentRegMax > 1 && regMode === 'create' && teamMemberCount < currentRegMin) { showMessage(`Minimum ${currentRegMin} members required!`); return; }
+
+  processRazorpayPayment(currentPendingFee, "Payment Successful! Registration complete.", async (payId) => {
+    let reg = userProfile.registrations.find(r => r.eventId === currentModalEvent.id);
+    if (!reg) { reg = { eventId: currentModalEvent.id, teamName: 'Individual', teamCode: null, members: [], payment: 'Success' }; userProfile.registrations.push(reg); }
+    else { reg.payment = 'Success'; saveTeamMembers(); }
+
+    const regData = {
+      id: Date.now().toString(),
+      eventId: currentModalEvent.id,
+      teamName: reg.teamName,
+      teamCode: reg.teamCode,
+      leader: userProfile.accountId,
+      members: reg.members || [],
+      payment: 'Success',
+      payId: payId
+    };
+    
+    await DatabaseAPI.add('registrations', regData);
+    saveCache();
+    closeModal('registerModal');
+    navigate('profile');
+  });
+}
+
+// ==========================================
+// 10. GALLERY & UPLOADS
+// ==========================================
+function searchGallery() {
+  const query = document.getElementById('gallery-search').value.toLowerCase();
+  const items = document.querySelectorAll('.gallery-item');
+  items.forEach(item => {
+    const tags = item.getAttribute('data-tags') || '';
+    if (tags.toLowerCase().includes(query)) {
+      item.style.display = '';
+    } else {
+      item.style.display = 'none';
+    }
+  });
+}
+
+function handleGalleryTap(item, event) {
+  if (event.target.closest('button')) return;
+
+  const now = new Date().getTime();
+  const lastTap = item.dataset.lastTap || 0;
+  const tapDelay = 300; 
+
+  if (now - lastTap < tapDelay && now - lastTap > 0) {
+    item.dataset.lastTap = 0;
+    const likeBtn = item.querySelector('button');
+    if (likeBtn) {
+      toggleLike(likeBtn, true);
+      showBigHeart(item);
+    }
+  } else {
+    item.dataset.lastTap = now;
+  }
+}
+
+function showBigHeart(container) {
+  const heart = document.createElement('div');
+  heart.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:50;animation:popHeart .8s ease-out forwards;font-size:72px;text-shadow:0 0 20px rgba(0,0,0,0.5);';
+  heart.textContent = '❤️';
+  container.appendChild(heart);
+  setTimeout(() => heart.remove(), 800);
+}
+
+function toggleLike(btn, fromDoubleTap = false) {
+  if (!isLoggedIn) { showMessage("Please sign in to like moments."); return; }
+  const icon = btn.querySelector('svg');
+  const countSpan = btn.querySelector('.like-count');
+  let count = parseInt(countSpan.innerText);
+
+  const isLiked = icon.classList.contains('text-rose-500');
+
+  if (fromDoubleTap && isLiked) return;
+
+  if (isLiked) {
+    icon.classList.remove('fill-rose-500', 'text-rose-500');
+    count--;
+  } else {
+    icon.classList.add('fill-rose-500', 'text-rose-500');
+    count++;
+    icon.style.transform = 'scale(1.5)';
+    setTimeout(() => icon.style.transform = 'scale(1)', 200);
+  }
+  countSpan.innerText = count;
+}
+
+function showUploadModal() {
+  if (!isLoggedIn) { showMessage("Sign in to upload photos."); return; }
+  document.getElementById('upload-event-name').value = '';
+  document.getElementById('upload-context').value = '';
+  toggleGalleryUploadType('file');
+  openModal('uploadModal');
+}
+
+function toggleGalleryUploadType(type) {
+    galleryUploadType = type;
+    const fileBtn = document.getElementById('btn-gal-file');
+    const linkBtn = document.getElementById('btn-gal-link');
+    const fileContainer = document.getElementById('gal-file-container');
+    const linkInput = document.getElementById('galLink');
+    
+    if (type === 'file') {
+        fileBtn.className = "flex-1 py-1.5 rounded bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider transition";
+        linkBtn.className = "flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700";
+        fileContainer.classList.remove('hidden');
+        linkInput.classList.add('hidden');
+    } else {
+        linkBtn.className = "flex-1 py-1.5 rounded bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider transition";
+        fileBtn.className = "flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700";
+        linkInput.classList.remove('hidden');
+        fileContainer.classList.add('hidden');
+    }
+}
+
+function toggleSponsorInput(type) {
+    sponsorUploadType = type;
+    const fileBtn = document.getElementById('btn-spon-file');
+    const linkBtn = document.getElementById('btn-spon-link');
+    const fileContainer = document.getElementById('spon-file-container');
+    const linkInput = document.getElementById('sponLink');
+    
+    if (type === 'file') {
+        fileBtn.className = "flex-1 py-1.5 rounded bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider transition";
+        linkBtn.className = "flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700";
+        fileContainer.classList.remove('hidden');
+        linkInput.classList.add('hidden');
+        linkInput.removeAttribute('required');
+    } else {
+        linkBtn.className = "flex-1 py-1.5 rounded bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider transition";
+        fileBtn.className = "flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700";
+        linkInput.classList.remove('hidden');
+        linkInput.setAttribute('required', 'true');
+        fileContainer.classList.add('hidden');
+    }
+}
+
+async function submitGalleryUpload() {
+  const evName = document.getElementById('upload-event-name').value || "College Fest";
+  const context = document.getElementById('upload-context').value || "Amazing moment!";
+  
+  let url = ''; 
+  
+  if (galleryUploadType === 'file') {
+      const fileInput = document.getElementById('galFile');
+      if(fileInput.files.length > 0) {
+          showMessage('Uploading image to Google Drive... Please wait.');
+          try {
+              url = await uploadFileToDrive(fileInput.files[0]);
+          } catch(e) {
+              return showMessage(e.message);
+          }
+      } else {
+          showMessage('Please select a file.'); return;
+      }
+  } else {
       const linkInput = document.getElementById('galLink').value;
       if(!linkInput) { showMessage('Please provide a link.'); return; }
       url = linkInput; 
@@ -2679,11 +2656,13 @@ async function submitSponsorForm() {
     } else {
         const fileInput = document.getElementById('sponFile');
         if(fileInput.files.length > 0) {
-            linkData = fileInput.files[0].name + " (Uploaded File)";
-            showMessage("Simulating file upload to Drive...");
-        } else {
-            showMessage("Please upload a file or switch to Drive Link."); return;
-        }
+            showMessage("Uploading proposal to Drive... Please wait.");
+            try {
+                linkData = await uploadFileToDrive(fileInput.files[0]);
+            } catch(e) {
+                return showMessage(e.message);
+            }
+        } else return showMessage("Please upload a file or switch to Drive Link.");
     }
 
     const data = {
@@ -2692,8 +2671,7 @@ async function submitSponsorForm() {
         contact: document.getElementById('sponContactName').value,
         email: document.getElementById('sponEmail').value,
         phone: document.getElementById('sponPhone').value,
-        link: linkData,
-        status: 'Pending'
+        link: linkData, status: 'Pending'
     };
     
     await DatabaseAPI.add('sponsors', data);
@@ -3386,7 +3364,6 @@ window.renderAdminPrizes = function() {
                     </div>
                     <div id="prizeMailTemplate" contenteditable="true" class="rich-editor-content flex-1 p-3 sm:p-4 text-white text-[10px] sm:text-xs focus:outline-none overflow-y-auto w-full break-words">${defaultTemplate}</div>
                 </div>
-
             </div>
         </div>
     `;
@@ -3422,7 +3399,6 @@ window.adminAddSingleUser = async function() {
         showMessage(`Updated existing user role to L${role}`);
     } else {
         const newId = "AUT-26-" + Math.floor(1000 + Math.random() * 9000);
-        // Using "defaultpass" since an admin is creating the account without password inputs
         await DatabaseAPI.add('users', { id: newId, name: "Pending User", email: email, password: "defaultpass", role: role, phone: "" });
         showMessage(`Pre-assigned role L${role} to ${email}`);
     }
@@ -3512,7 +3488,7 @@ window.executeAdminReply = async function() {
     let attachFiles = document.getElementById('adminReplyFiles')?.files?.length || 0;
     
     const msgBox = document.getElementById('adminReplyMessage');
-    const textMsg = msgBox ? msgBox.innerText.trim() : "";
+    const textMsg = msgBox ? msgBox.innerHTML.trim() : "";
     
     if(!textMsg) {
          showMessage("Please type a message before sending.");
@@ -3799,9 +3775,17 @@ window.handleQrImageUpload = function(event) {
 }
 
 function onScanSuccess(decodedText) {
-  document.getElementById('scan-input').value = decodedText;
-  stopCameraScan();
-  simulateScan();
+    let extractedId = decodedText;
+    try {
+        if (decodedText.includes('http')) {
+            const url = new URL(decodedText);
+            extractedId = url.searchParams.get('id') || decodedText;
+        }
+    } catch(e) {}
+    
+    document.getElementById('scan-input').value = extractedId;
+    stopCameraScan();
+    simulateScan();
 }
 
 window.simulateScan = async function() {
@@ -3877,11 +3861,12 @@ window.toggleAdminEventStatus = function(cat, id) {
   }
 }
 
-window.deleteAdminEvent = function(cat, id) {
-  EVENTS_DATA[cat] = EVENTS_DATA[cat].filter(e => e.id !== id);
+window.deleteAdminEvent = async function(cat, id) {
+  await DatabaseAPI.delete('events', id);
+  await buildEventsData();
   updateDynamicCalendar();
   renderAdminDashboard();
-  showMessage("Event deleted.");
+  showMessage("Event deleted from Database.");
 }
 
 window.toggleAdminEventFields = function() {
@@ -3994,15 +3979,17 @@ window.saveAdminEvent = async function() {
       const fileInput = document.getElementById('adminEvBannerFile');
       if (fileInput && fileInput.files.length > 0) {
           showMessage("Uploading banner to Google Drive... Please wait.");
-          bannerVal = await uploadFileToDrive(fileInput.files[0]);
-          if (!bannerVal) { showMessage("Banner upload failed."); return; }
+          try {
+              bannerVal = await uploadFileToDrive(fileInput.files[0]);
+          } catch(e) {
+              return showMessage(e.message);
+          }
       }
   }
   
   const newEv = {
     id: id || (isFest ? 'f' : 'e') + Date.now(),
-    category: cat,
-    status: 'open',
+    category: cat, status: 'open',
     name: document.getElementById('adminEvName').value,
     fee: isFest ? 0 : parseInt(document.getElementById('adminEvFee').value || 0),
     prize: isFest ? '-' : document.getElementById('adminEvPrize').value,
@@ -4013,26 +4000,14 @@ window.saveAdminEvent = async function() {
     desc: document.getElementById('adminEvDesc').value
   };
 
-  // Sync to Database instead of local array
-  await DatabaseAPI.add('events', newEv);
+  if (id) await DatabaseAPI.update('events', id, newEv);
+  else await DatabaseAPI.add('events', newEv);
   
-  // Automate Mail to Creator
-  if (!id) {
-      fetch(`${BASE_URL}/send-mail`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-              subject: `New Setup Authorized: ${newEv.name}`,
-              body: `Admin ${userProfile.name} successfully added/configured the event or festival: "${newEv.name}".`,
-              recipients: [{ email: userProfile.email, name: userProfile.name }]
-          })
-      });
-  }
-
   await buildEventsData();
+  updateDynamicCalendar();
   closeModal('adminEventModal');
   renderAdminDashboard();
-  showMessage(id ? "Event updated successfully!" : "Event created successfully!");
+  showMessage(id ? "Event updated in Database!" : "Event created in Database!");
 }
 
 window.populateScannerEventDropdown = function() {
@@ -4096,7 +4071,7 @@ window.openGalleryDetails = function(id) {
         openModal('adminDetailsModal');
         renderIcons();
     });
-}
+};
 
 window.approveGalleryImage = async function(id) {
     const allGallery = await DatabaseAPI.get('gallery');
@@ -4126,7 +4101,7 @@ window.approveGalleryImage = async function(id) {
         renderAdminDashboard();
         showMessage(`Image approved! Email sent.`);
     }
-}
+};
 
 window.rejectGalleryImage = async function(id) {
     const allGallery = await DatabaseAPI.get('gallery');
@@ -4154,4 +4129,4 @@ window.rejectGalleryImage = async function(id) {
 
     renderAdminDashboard();
     showMessage(`Image rejected. Email sent.`);
-}
+};
