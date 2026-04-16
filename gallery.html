@@ -16,6 +16,7 @@
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="shared.js"></script>
+    <script src="gallery.js"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
@@ -102,42 +103,12 @@
                 </div>
             </div>
 
-            <!-- Gallery Grid -->
-            <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 auto-rows-[200px]">
-                
-                <div class="gallery-item group relative rounded-3xl overflow-hidden bg-zinc-900 border border-white/5 col-span-1 row-span-2 select-none cursor-pointer" data-tags="starnite concert music stage dj main event" onclick="handleGalleryTap(this, event)">
-                    <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80" alt="Concert" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 md:p-6">
-                        <h4 class="text-white font-bold text-base sm:text-lg md:text-xl gallery-overlay-item">Starnite Concert</h4>
-                        <p class="text-zinc-300 text-[10px] sm:text-xs mb-3 gallery-overlay-item delay-100">The crowd went absolutely wild!</p>
-                        <button onclick="toggleLike(this)" class="w-fit flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-colors text-xs md:text-sm gallery-overlay-item delay-200 z-10 relative">
-                            <i data-lucide="heart" class="w-4 h-4 transition-colors"></i> <span class="like-count">124</span>
-                        </button>
-                    </div>
+            <!-- Gallery Grid with Loading Spinner by Default -->
+            <div id="gallery-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6 w-full">
+                <div class="col-span-full py-12 flex flex-col items-center justify-center w-full">
+                    <div class="w-10 h-10 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(225,29,72,0.5)]"></div>
+                    <p class="text-zinc-400 text-xs sm:text-sm font-bold uppercase tracking-widest animate-pulse">Loading moments...</p>
                 </div>
-
-                <div class="gallery-item group relative rounded-3xl overflow-hidden bg-zinc-900 border border-white/5 col-span-1 row-span-1 select-none cursor-pointer" data-tags="hackathon coding tech computers winner main event" onclick="handleGalleryTap(this, event)">
-                    <img src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&q=80" alt="Hackathon" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 md:p-6">
-                        <h4 class="text-white font-bold text-base sm:text-lg gallery-overlay-item">24Hr Hackathon</h4>
-                        <p class="text-zinc-300 text-[10px] sm:text-xs mb-3 gallery-overlay-item delay-100">Midnight coding sessions.</p>
-                        <button onclick="toggleLike(this)" class="w-fit flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-colors text-xs md:text-sm gallery-overlay-item delay-200 z-10 relative">
-                            <i data-lucide="heart" class="w-4 h-4 transition-colors"></i> <span class="like-count">89</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="gallery-item group relative rounded-3xl overflow-hidden bg-zinc-900 border border-white/5 col-span-1 row-span-2 sm:col-span-2 md:col-span-1 select-none cursor-pointer" data-tags="esports gaming tournament bgmi valorant crowd" onclick="handleGalleryTap(this, event)">
-                    <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80" alt="Esports" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 md:p-6">
-                        <h4 class="text-white font-bold text-base sm:text-lg md:text-xl gallery-overlay-item">Esports Finals</h4>
-                        <p class="text-zinc-300 text-[10px] sm:text-xs mb-3 gallery-overlay-item delay-100">Intense 1v1 clutch moment.</p>
-                        <button onclick="toggleLike(this)" class="w-fit flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-colors text-xs md:text-sm gallery-overlay-item delay-200 z-10 relative">
-                            <i data-lucide="heart" class="w-4 h-4 transition-colors"></i> <span class="like-count">256</span>
-                        </button>
-                    </div>
-                </div>
-
             </div>
         </section>
 
