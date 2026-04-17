@@ -26,10 +26,16 @@ window.renderProfile = async function() {
     const accoms = await window.DatabaseAPI.get('accommodations');
     const myAccom = accoms.find(a => a.id === window.userProfile.accountId);
     if(myAccom) {
+        // Parse the normalized BCNF day columns
+        let bookedDays = [];
+        if (String(myAccom.day1).toLowerCase() === 'yes') bookedDays.push('Day 1');
+        if (String(myAccom.day2).toLowerCase() === 'yes') bookedDays.push('Day 2');
+        if (String(myAccom.day3).toLowerCase() === 'yes') bookedDays.push('Day 3');
+
         window.userProfile.accommodation = {
             type: myAccom.requested && myAccom.requested !== "None" ? "Shared" : "Individual",
             wing: myAccom.wing,
-            duration: myAccom.duration,
+            duration: bookedDays.join(', ') || 'None',
             roommate: myAccom.requested || "None",
             roomNumber: myAccom.room || "Pending",
             payId: myAccom.payId
