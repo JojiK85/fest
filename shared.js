@@ -703,7 +703,8 @@ window.checkAccomAvailability = async function(wing, daysArray) {
     const maxCapacity = maxRooms * perRoom;
     
     for (let day of daysArray) {
-        const bookedOnDay = accoms.filter(a => a.wing === wing && a.duration.includes(day)).length;
+        let dbField = day === 'Day 1' ? 'day1' : (day === 'Day 2' ? 'day2' : 'day3');
+        const bookedOnDay = accoms.filter(a => a.wing === wing && String(a[dbField]).toLowerCase() === 'yes').length;
         if (bookedOnDay >= maxCapacity) {
             return { available: false, day: day };
         }
@@ -754,6 +755,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (window.isLoggedIn) window.finalizeLoginUI();
 
     window.renderIcons();
+
+    // Trigger Accommodation Setup specifically if on the accommodation page
+    if (currentPage === 'accommodation') {
+        if (window.userProfile && window.userProfile.accountId) {
+            window.setupAccommodationForm();
+        } else {
+            window.addEventListener('db-updated', window.setupAccommodationForm);
+        }
+    }
 
     document.addEventListener('click', (e) => {
         const menu = document.getElementById('mobile-menu');
@@ -1940,4 +1950,122 @@ window.submitSponsorForm = async function() {
     
     if(typeof closeModal === 'function') closeModal('sponsorModal');
     if(typeof showMessage === 'function') showMessage('Sponsorship proposal securely submitted!');
+};
+
+// ==========================================
+// 5. ACCOMMODATION SPECIFIC LOGIC
+// ==========================================
+
+window.setupAccommodationForm = function() {
+    const wingSelect = document.getElementById('roomWing');
+    if(!wingSelect) return;
+    
+    // Auto-select and lock wing based on gender to prevent tampering
+    if (window.userProfile && window.userProfile.gender === 'Female') {
+        wingSelect.value = 'female';
+        wingSelect.disabled = true;
+        wingSelect.classList.add('opacity-50');
+    } else if (window.userProfile && window.userProfile.gender === 'Male') {
+        wingSelect.value = 'male';
+        wingSelect.disabled = true;
+        wingSelect.classList.add('opacity-50');
+    } else {
+        wingSelect.disabled = false;
+        wingSelect.classList.remove('opacity-50');
+    }
+    
+    // Calculate initial room cost immediately
+    window.calculateRoomCost();
+    
+    // Fade the completely constructed UI in smoothly to avoid any CSS jumps
+    const formContainer = document.getElementById('bookingFormContainer');
+    if (formContainer && !formContainer.classList.contains('setup-complete')) {
+        formContainer.classList.add('setup-complete');
+        setTimeout(() => {
+            formContainer.style.transition = 'opacity 0.4s ease-in-out';
+            formContainer.style.opacity = '1';
+        }, 50);
+    }
+};
+
+window.calculateRoomCost = function() {
+    const checks = document.querySelectorAll('.accom-day-check:checked');
+    const days = checks.length;
+    const price = 300; 
+    const costBox = document.getElementById('roomTotalCost');
+    if(costBox) costBox.innerText = `₹${price * days}`;
+    
+    // Update global state tracking the pending fee for Razorpay
+    window.currentPendingFee = price * days;
+};
+
+window.processRoomBooking = async function() {
+    const roommateId = document.getElementById('roommateId') ? document.getElementById('roommateId').value.trim() : "";
+    const wing = document.getElementById('roomWing').value;
+    const checks = document.querySelectorAll('.accom-day-check:checked');
+    
+    if (checks.length === 0) {
+        if(typeof window.showMessage === 'function') window.showMessage("Please select at least one day for accommodation.");
+        return;
+    }
+    
+    const daysArray = Array.from(checks).map(c => c.value);
+    const selectedDays = daysArray.join(', ');
+
+    // Gender Verification for roommates if IDs are provided
+    if (roommateId) {
+        const users = await window.DatabaseAPI.get('users');
+        const friends = roommateId.split(',').map(s => s.trim());
+        for (let fId of friends) {
+            const friend = users.find(u => u.id === fId);
+            if (friend) {
+                if (friend.gender && friend.gender !== 'Not Specified' && friend.gender !== window.userProfile.gender) {
+                    if(typeof window.showMessage === 'function') window.showMessage(`Cannot share room with ${fId} (Different gender).`);
+                    return;
+                }
+            } else {
+                if(typeof window.showMessage === 'function') window.showMessage(`Account ID ${fId} not found.`);
+                return;
+            }
+        }
+    }
+
+    if(typeof window.showMessage === 'function') window.showMessage("Verifying live room availability...");
+
+    // Validate availability dynamically via shared logic
+    const availability = await window.checkAccomAvailability(wing, daysArray);
+    
+    if (!availability.available) {
+        if(typeof window.showMessage === 'function') window.showMessage(`Sorry, ${availability.day} is fully booked for the ${wing} wing!`);
+        return;
+    }
+
+    window.calculateRoomCost();
+    
+    // Trigger standard payment gateway flow
+    if (typeof window.processRazorpayPayment === 'function') {
+        window.processRazorpayPayment(window.currentPendingFee, "Accommodation Booking Successful!", async (payId) => {
+            window.userProfile.accommodation = {
+                type: roommateId ? "Shared" : "Individual", 
+                wing: wing, 
+                duration: selectedDays, 
+                roommate: roommateId || "None", 
+                roomNumber: "Pending", 
+                payId: payId
+            };
+
+            await window.DatabaseAPI.add('accommodations', {
+                id: window.userProfile.accountId, 
+                name: window.userProfile.name, 
+                wing: wing, 
+                duration: selectedDays, 
+                requested: roommateId || "None", 
+                room: null, 
+                payId: payId
+            });
+
+            if (typeof window.saveCache === 'function') window.saveCache();
+            if (typeof window.navigate === 'function') window.navigate('profile');
+        });
+    }
 };
