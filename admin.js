@@ -5,14 +5,26 @@
 // Ensure it triggers when loading the admin page
 document.addEventListener("DOMContentLoaded", () => {
     if (document.getElementById('admin-role-display')) {
-        setTimeout(() => {
-            if (window.isAdmin) {
-                const scannerDisplay = document.getElementById('scanner-id-display');
-                if (scannerDisplay) scannerDisplay.innerText = window.userProfile.email;
-                window.renderAdminDashboard();
-                if(window.populateScannerEventDropdown) window.populateScannerEventDropdown();
+        // Ultra-fast polling instead of hard 200ms delay.
+        // It checks if user data is populated and fires instantly.
+        const checkSession = setInterval(() => {
+            if (window.DatabaseAPI && window.DatabaseAPI._data && window.userProfile && window.userProfile.email !== undefined) {
+                clearInterval(checkSession);
+                if (window.isAdmin) {
+                    const scannerDisplay = document.getElementById('scanner-id-display');
+                    if (scannerDisplay) scannerDisplay.innerText = window.userProfile.email;
+                    window.renderAdminDashboard();
+                    if(window.populateScannerEventDropdown) window.populateScannerEventDropdown();
+                    
+                    // Render analytics instantly using cache (forceRefresh = false)
+                    // The live sync will auto-trigger via 'db-updated' event.
+                    if(typeof window.renderAnalytics === 'function') window.renderAnalytics(false); 
+                }
             }
-        }, 200);
+        }, 30);
+        
+        // Failsafe cleanup
+        setTimeout(() => clearInterval(checkSession), 3000);
     }
 });
 
@@ -38,7 +50,8 @@ window.switchAdminTab = function(tabId) {
     if (tabPanel) tabPanel.classList.remove('hidden');
     if (event && event.currentTarget) event.currentTarget.classList.add('active');
 
-    if (tabId === 'admin-analytics-tab') window.renderAnalytics();
+    // Force fetch live data from server ONLY when actively switching to the Analytics tab
+    if (tabId === 'admin-analytics-tab') window.renderAnalytics(true);
     if (tabId === 'admin-accom-tab') window.renderAdminAccomTable();
     if (tabId === 'admin-search-tab') window.renderAdminSearchTable();
     if (tabId === 'admin-queries-tab') window.renderAdminQueries();
@@ -49,34 +62,162 @@ window.switchAdminTab = function(tabId) {
     if (tabId !== 'admin-scanner-tab') window.stopCameraScan();
 };
 
-window.renderAnalytics = async function() {
-    const dayFilter = document.getElementById('analyticsDayFilter')?.value || 'all';
-    const evFilter = document.getElementById('analyticsEventFilter')?.value || 'all';
+window.renderAnalytics = async function(forceRefresh = false) {
+    if (typeof forceRefresh !== 'boolean') forceRefresh = true;
 
-    const regs = await window.DatabaseAPI.get('registrations');
-    const pays = await window.DatabaseAPI.get('payments');
-    const logs = await window.DatabaseAPI.get('logs');
+    const dayFilter = String(document.getElementById('analyticsDayFilter')?.value || 'all').toLowerCase().trim();
+    const evFilter = String(document.getElementById('analyticsEventFilter')?.value || 'all').toLowerCase().trim();
 
-    let filteredReg = regs.length;
-    let filteredRev = pays.filter(p => p.status === 'Success').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    // Fetch data
+    const regs = await window.DatabaseAPI.get('registrations', forceRefresh) || [];
+    const pays = await window.DatabaseAPI.get('payments', forceRefresh) || [];
+    const logs = await window.DatabaseAPI.get('logs', forceRefresh) || [];
+    const accoms = await window.DatabaseAPI.get('accommodations', forceRefresh) || [];
+
+    let filteredRegs = regs;
+    let filteredPays = pays.filter(p => p.status === 'Success');
+    let filteredLogs = logs;
+    let filteredAccoms = accoms;
+
+    // --- APPLY EVENT / ACCOMMODATION FILTER ---
+    if (evFilter !== 'all') {
+        if (evFilter === 'accommodation' || evFilter === 'accom') {
+            filteredRegs = []; // Hide event registrations
+            
+            const accomUserIds = new Set(accoms.map(a => a.id));
+            filteredPays = filteredPays.filter(p => accomUserIds.has(p.user));
+            filteredLogs = filteredLogs.filter(l => String(l.type).toLowerCase().includes('accom') || String(l.id).includes('ACCOM'));
+        } else {
+            filteredAccoms = []; // Hide accommodation stats
+            filteredRegs = filteredRegs.filter(r => String(r.eventId).toLowerCase() === evFilter);
+            
+            // Map users attached to this specific event for revenue calculation
+            const eventUserIds = new Set();
+            filteredRegs.forEach(r => {
+                if (r.leader) eventUserIds.add(r.leader);
+                if (r.members && Array.isArray(r.members)) r.members.forEach(m => eventUserIds.add(m));
+            });
+            
+            filteredPays = filteredPays.filter(p => eventUserIds.has(p.user));
+            filteredLogs = filteredLogs.filter(l => String(l.type).toLowerCase() === evFilter || String(l.id).toLowerCase().includes(evFilter));
+        }
+    }
+
+    // --- APPLY DAY / TIME FILTER ---
+    if (dayFilter !== 'all') {
+        let startDate = new Date(0); // Epoch
+        let specificDayStr = '';
+        
+        if (dayFilter === 'today') {
+            startDate = new Date();
+            startDate.setHours(0,0,0,0);
+        } else if (dayFilter === 'week' || dayFilter.includes('7days')) {
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 7);
+        } else if (dayFilter === 'month' || dayFilter.includes('30days')) {
+            startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - 1);
+        } else {
+            specificDayStr = dayFilter; // Used if checking exact strings like "Day 1"
+        }
+        
+        const checkDate = (item) => {
+            const itemDateStr = item.date || item.timestamp || item.createdAt;
+            if (!itemDateStr) return true; // Keep if no date exists
+            
+            if (specificDayStr) {
+                return String(itemDateStr).toLowerCase().includes(specificDayStr);
+            } else if (startDate.getTime() > 0) {
+                const d = new Date(itemDateStr);
+                if (!isNaN(d.getTime())) return d >= startDate;
+            }
+            return true;
+        };
+
+        filteredRegs = filteredRegs.filter(checkDate);
+        filteredPays = filteredPays.filter(checkDate);
+        filteredAccoms = filteredAccoms.filter(checkDate);
+        filteredLogs = filteredLogs.filter(checkDate);
+    }
+
+    // --- CALCULATE FINAL METRICS ---
+    let totalRegCount = filteredRegs.length + (evFilter === 'all' || evFilter === 'accommodation' ? filteredAccoms.length : 0);
+    let totalRevCount = filteredPays.reduce((sum, p) => sum + Number(p.amount || 0), 0);
     
     const todayStr = new Date().toDateString();
-    let scansToday = logs.filter(l => new Date(l.timestamp).toDateString() === todayStr).length;
-    let insideCampus = new Set(logs.map(l => l.id)).size;
+    let scansToday = filteredLogs.filter(l => {
+        const d = new Date(l.timestamp || l.date);
+        return !isNaN(d.getTime()) && d.toDateString() === todayStr;
+    }).length;
+    
+    let insideCampus = new Set(filteredLogs.map(l => l.id)).size;
 
-    if (dayFilter !== 'all') { filteredReg = Math.floor(filteredReg * 0.4); filteredRev = Math.floor(filteredRev * 0.4); }
-    if (evFilter !== 'all') { filteredReg = Math.floor(filteredReg * 0.1); filteredRev = Math.floor(filteredRev * 0.1); }
+    // Calculate dynamic "Today" mini-stats
+    let regsToday = filteredRegs.filter(r => {
+        const timestamp = r.date || r.timestamp || parseInt(r.id); // Fallback to ID which is a Date.now() timestamp
+        const d = new Date(timestamp);
+        return !isNaN(d.getTime()) && d.toDateString() === todayStr;
+    }).length;
 
-    document.getElementById('stat-total-reg').innerText = filteredReg.toLocaleString();
-    document.getElementById('stat-scans').innerText = scansToday.toLocaleString();
-    document.getElementById('stat-inside').innerText = insideCampus.toLocaleString();
+    let revToday = filteredPays.filter(p => {
+        const d = new Date(p.timestamp || p.date);
+        return !isNaN(d.getTime()) && d.toDateString() === todayStr;
+    }).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+    // --- UPDATE DOM ---
+    const safeUpdate = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    };
+
+    safeUpdate('stat-total-reg', totalRegCount.toLocaleString());
+    safeUpdate('stat-scans', scansToday.toLocaleString());
+    safeUpdate('stat-inside', insideCampus.toLocaleString());
+    safeUpdate('stat-reg-today', `+${regsToday.toLocaleString()} today`);
     
     const revContainer = document.getElementById('stat-revenue-container');
     if(window.currentRole >= window.ROLES.SUPERACCOUNT) {
-        revContainer.style.display = 'block';
-        document.getElementById('stat-revenue').innerText = `₹${filteredRev.toLocaleString()}`;
+        if(revContainer) revContainer.style.display = 'block';
+        safeUpdate('stat-revenue', `₹${totalRevCount.toLocaleString()}`);
+        safeUpdate('stat-rev-today', `+₹${revToday.toLocaleString()} today`);
     } else {
-        revContainer.style.display = 'none';
+        if(revContainer) revContainer.style.display = 'none';
+    }
+
+    // MAKE HTML PROGRESS BARS FULLY DYNAMIC FROM LIVE DB
+    const fillRatesContainer = document.getElementById('dynamic-fill-rates');
+    if (fillRatesContainer) {
+        const allEvents = Object.values(window.EVENTS_DATA || {}).flat();
+        
+        let eventStats = allEvents.map(ev => {
+            const count = regs.filter(r => String(r.eventId) === String(ev.id)).length;
+            return { name: ev.name, cat: ev.category || 'event', count: count };
+        }).sort((a, b) => b.count - a.count); // Highest registrations at the top
+        
+        // Display empty bars if no registrations exist yet
+        if(eventStats.length === 0 || eventStats.every(e => e.count === 0)) {
+            eventStats = allEvents.slice(0, 6).map(ev => ({ name: ev.name, cat: ev.category || 'event', count: 0 }));
+        }
+
+        const topEvents = eventStats.slice(0, 6); 
+        const maxCount = Math.max(...topEvents.map(e => e.count), 50); // Min scale of 50 to look proportional
+        
+        const colors = ['bg-orange-500', 'bg-purple-500', 'bg-blue-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500'];
+        
+        fillRatesContainer.innerHTML = topEvents.map((stat, idx) => {
+            const percent = Math.min((stat.count / maxCount) * 100, 100);
+            const color = colors[idx % colors.length];
+            return `
+            <div>
+                <div class="flex justify-between text-[10px] sm:text-xs mb-1">
+                    <span class="text-zinc-400 truncate pr-2">${stat.name} <span class="text-zinc-600 capitalize">(${stat.cat})</span></span>
+                    <span class="text-white font-bold shrink-0">${stat.count} <span class="text-zinc-500 font-normal">Regs</span></span>
+                </div>
+                <div class="w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
+                    <div class="${color} h-1.5 rounded-full transition-all duration-1000 ease-out" style="width: ${percent}%"></div>
+                </div>
+            </div>`;
+        }).join('');
     }
 };
 
@@ -180,14 +321,11 @@ window.renderAdminDashboard = async function() {
             window.renderAdminEventsList('events');
         }
 
-        // Render data tables explicitly so their badging counts are accurate
         window.renderAdminQueries();
         window.renderAdminSponsors();
         
-        // Trigger badge refresh logic
         if(typeof window.updateAdminBadges === 'function') window.updateAdminBadges();
 
-        // 🔥 FIX: Utilize Google's lh3 subdomain to flawlessly render Drive Images without blocking
         const allGallery = await window.DatabaseAPI.get('gallery');
         const dbPendingUploads = allGallery.filter(g => g.status === 'Pending');
         const getDirect = (url) => {
@@ -246,7 +384,6 @@ window.renderAdminDashboard = async function() {
         const usersTable = document.getElementById('admin-users-table');
         if(usersTable) usersTable.innerHTML = usersHTML;
 
-        // Force Table headers to align correctly
         const usersThead = document.querySelector('#admin-users-table')?.closest('table').querySelector('thead tr');
         if (usersThead) {
             usersThead.innerHTML = `
@@ -351,7 +488,6 @@ window.renderAdminEventsList = function(type = 'events') {
     contentHtml += rowsHtml + `</tbody></table></div>`;
     tab.innerHTML = contentHtml;
 
-    // Repopulate dynamic events layout toggle without overriding container
     const dynamicBtns = document.getElementById('dynamic-events-btns');
     if (dynamicBtns) {
         dynamicBtns.classList.remove('hidden');
@@ -375,7 +511,6 @@ window.toggleAdminEventStatus = function(cat, id) {
 
 window.deleteAdminEvent = async function(cat, id) {
     await window.DatabaseAPI.delete('events', id);
-    // Reload events data (assume buildEventsData fetches or reorganizes data)
     const res = await fetch(`${window.BASE_URL}/events`);
     if(res.ok) {
         window.DatabaseAPI._data['events'] = await res.json();
@@ -519,7 +654,6 @@ window.saveAdminEvent = async function() {
     if (id) await window.DatabaseAPI.update('events', id, newEv);
     else await window.DatabaseAPI.add('events', newEv);
     
-    // Refresh events logic
     const res = await fetch(`${window.BASE_URL}/events`);
     if(res.ok) {
         window.DatabaseAPI._data['events'] = await res.json();
@@ -533,10 +667,43 @@ window.saveAdminEvent = async function() {
 };
 
 // --- ACCOMMODATION ADMIN ---
-window.autoAssignRooms = async function() {
-    let maxRooms = { male: 150, female: 120 };
-    let dbAccoms = await window.DatabaseAPI.get('accommodations');
+window.saveAccomSettings = async function() {
+    const maleR = document.getElementById('adminMaleRooms').value;
+    const femaleR = document.getElementById('adminFemaleRooms').value;
+    const perR = document.getElementById('adminPerRoom').value;
     
+    if (!maleR || !femaleR || !perR) return window.showMessage("Please fill all capacity fields.");
+    
+    const settingsData = {
+        id: 'accom_capacity',
+        maleRooms: parseInt(maleR),
+        femaleRooms: parseInt(femaleR),
+        perRoom: parseInt(perR)
+    };
+    
+    const allSettings = await window.DatabaseAPI.get('settings');
+    const exists = allSettings.find(s => s.id === 'accom_capacity');
+    
+    if (exists) {
+        await window.DatabaseAPI.update('settings', 'accom_capacity', settingsData);
+    } else {
+        await window.DatabaseAPI.add('settings', settingsData);
+    }
+    
+    window.showMessage("Accommodation capacity settings updated successfully!");
+    if(typeof window.closeModal === 'function') window.closeModal('accomSettingsModal');
+    window.renderAdminAccomTable();
+};
+
+window.autoAssignRooms = async function() {
+    const settings = await window.getAccomSettings();
+    let maxRooms = { 
+        male: parseInt(settings.maleRooms || 150), 
+        female: parseInt(settings.femaleRooms || 120) 
+    };
+    let perRoom = parseInt(settings.perRoom || 3);
+    
+    let dbAccoms = await window.DatabaseAPI.get('accommodations');
     let unassigned = dbAccoms.filter(b => !b.room);
     let processed = new Set();
     let successCount = 0;
@@ -550,7 +717,7 @@ window.autoAssignRooms = async function() {
         if (b.requested && b.requested !== "None") {
             let friends = b.requested.split(',').map(s => s.trim());
             friends.forEach(fId => {
-                if (group.length >= 3) return; 
+                if (group.length >= perRoom) return; 
                 let friendBooking = unassigned.find(fb => fb.id === fId && fb.wing === b.wing && !processed.has(fb.id));
                 if (friendBooking) {
                     group.push(friendBooking);
@@ -561,7 +728,9 @@ window.autoAssignRooms = async function() {
 
         let daysBooked = new Set();
         group.forEach(member => {
-            member.duration.split(',').forEach(d => daysBooked.add(d.trim()));
+            if (member.duration) {
+                member.duration.split(',').forEach(d => daysBooked.add(d.trim()));
+            }
         });
         let allDays = Array.from(daysBooked);
 
@@ -572,7 +741,7 @@ window.autoAssignRooms = async function() {
             let canFit = true;
             for (let day of allDays) {
                 let occupantsOnDay = dbAccoms.filter(a => a.room == r && a.wing == w && a.duration.includes(day));
-                if (occupantsOnDay.length + group.length > 3) {
+                if (occupantsOnDay.length + group.length > perRoom) {
                     canFit = false;
                     break;
                 }
@@ -605,18 +774,36 @@ window.renderAdminAccomTable = async function() {
     let tab = document.getElementById('admin-accom-tab');
     if (!tab) return;
 
+    // Fetch dynamic capacity
+    const settings = await window.getAccomSettings();
+    const maxMale = parseInt(settings.maleRooms || 150) * parseInt(settings.perRoom || 3);
+    const maxFemale = parseInt(settings.femaleRooms || 120) * parseInt(settings.perRoom || 3);
+    const totalCapacityPerDay = maxMale + maxFemale;
+
     let dailyRooms = { 'Day 1': {}, 'Day 2': {}, 'Day 3': {} };
+    let dailyStats = {
+        'Day 1': { booked: 0, assigned: 0 },
+        'Day 2': { booked: 0, assigned: 0 },
+        'Day 3': { booked: 0, assigned: 0 }
+    };
+    
     let paidList = [];
-    let assignedCount = 0;
+    let globalAssignedCount = 0;
     
     dbAccoms.forEach(a => {
         paidList.push(a);
-        if (a.room && a.duration) {
-            assignedCount++;
+        let hasRoomAssigned = a.room ? true : false;
+        if (hasRoomAssigned) globalAssignedCount++;
+
+        if (a.duration) {
             ['Day 1', 'Day 2', 'Day 3'].forEach(day => {
                 if (a.duration.includes(day)) {
-                    if (!dailyRooms[day][a.room]) dailyRooms[day][a.room] = [];
-                    dailyRooms[day][a.room].push(a);
+                    dailyStats[day].booked++;
+                    if (hasRoomAssigned) {
+                        dailyStats[day].assigned++;
+                        if (!dailyRooms[day][a.room]) dailyRooms[day][a.room] = [];
+                        dailyRooms[day][a.room].push(a);
+                    }
                 }
             });
         }
@@ -628,26 +815,29 @@ window.renderAdminAccomTable = async function() {
         <div class="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
                 <h3 class="text-xl font-bold text-white">Accommodation Operations</h3>
-                <p class="text-xs text-zinc-400 mt-1">Review paid records and daily room allocations.</p>
+                <p class="text-xs text-zinc-400 mt-1">Review paid records, capacity, and daily room allocations.</p>
             </div>
-            <button onclick="window.autoAssignRooms()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold text-sm shadow-[0_0_15px_rgba(37,99,235,0.4)] transition shrink-0">Auto-Assign Pending</button>
+            <div class="flex gap-2 w-full sm:w-auto overflow-x-auto custom-scrollbar pb-1 sm:pb-0">
+                <button onclick="document.getElementById('adminMaleRooms').value='${settings.maleRooms||150}'; document.getElementById('adminFemaleRooms').value='${settings.femaleRooms||120}'; document.getElementById('adminPerRoom').value='${settings.perRoom||3}'; window.openModal('accomSettingsModal')" class="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-white font-bold text-sm shadow transition shrink-0 flex items-center gap-2"><i data-lucide="settings" class="w-4 h-4"></i> Capacity</button>
+                <button onclick="window.autoAssignRooms()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold text-sm shadow-[0_0_15px_rgba(37,99,235,0.4)] transition shrink-0">Auto-Assign Pending</button>
+            </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <div class="bg-blue-900/20 border border-blue-500/30 p-4 rounded-xl flex items-center justify-between">
-                <div>
-                    <p class="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-1">Total Paid Setup</p>
-                    <p class="text-2xl font-black text-white">${paidList.length} <span class="text-xs font-medium text-zinc-400">participants</span></p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            ${['Day 1', 'Day 2', 'Day 3'].map(d => `
+            <div class="bg-black/40 border border-white/5 p-4 rounded-xl flex flex-col justify-between transition-colors ${selectedDay === d ? 'ring-2 ring-blue-500/50 bg-blue-900/10' : ''}">
+                <p class="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-2">${d} Occupancy</p>
+                <div class="flex justify-between items-end">
+                    <div>
+                        <p class="text-xl font-black text-white">${dailyStats[d].booked} <span class="text-xs font-medium text-zinc-500">/ ${totalCapacityPerDay} cap</span></p>
+                        <p class="text-[10px] text-zinc-400 mt-1">${dailyStats[d].assigned} mapped to rooms</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${dailyStats[d].booked >= totalCapacityPerDay ? 'bg-red-500/20 text-red-500' : 'bg-emerald-500/20 text-emerald-500'}">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                    </div>
                 </div>
-                <i data-lucide="credit-card" class="w-8 h-8 text-blue-500/50"></i>
             </div>
-            <div class="bg-emerald-900/20 border border-emerald-500/30 p-4 rounded-xl flex items-center justify-between">
-                <div>
-                    <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">Total Assigned Setup</p>
-                    <p class="text-2xl font-black text-white">${assignedCount} <span class="text-xs font-medium text-zinc-400">participants mapped</span></p>
-                </div>
-                <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500/50"></i>
-            </div>
+            `).join('')}
         </div>
 
         <div class="bg-zinc-900/40 border border-white/5 rounded-3xl p-4 sm:p-6 shadow-xl flex flex-col gap-4">
@@ -663,7 +853,7 @@ window.renderAdminAccomTable = async function() {
             
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto max-h-[500px] custom-scrollbar p-1">
                 ${Object.keys(dailyRooms[selectedDay]).length > 0 ? Object.entries(dailyRooms[selectedDay]).sort((a,b) => parseInt(a[0]) - parseInt(b[0])).map(([room, occupants]) => `
-                    <div class="bg-black/60 border ${occupants.length >= 3 ? 'border-red-500/30' : 'border-emerald-500/30'} p-4 rounded-xl shadow-inner hover:bg-zinc-800 transition relative">
+                    <div class="bg-black/60 border ${occupants.length >= parseInt(settings.perRoom||3) ? 'border-red-500/30' : 'border-emerald-500/30'} p-4 rounded-xl shadow-inner hover:bg-zinc-800 transition relative">
                         <p class="text-sm text-white font-black mb-3 border-b border-white/10 pb-2">Room ${room} <span class="text-[9px] font-normal text-zinc-500 float-right mt-1">${occupants[0].wing.toUpperCase()} WING</span></p>
                         <div class="space-y-2">
                             ${occupants.map(occ => `
@@ -673,7 +863,7 @@ window.renderAdminAccomTable = async function() {
                                 </div>
                             `).join('')}
                         </div>
-                        ${occupants.length >= 3 ? `<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,1)]" title="Room Full"></span>` : ''}
+                        ${occupants.length >= parseInt(settings.perRoom||3) ? `<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,1)]" title="Room Full"></span>` : ''}
                     </div>
                 `).join('') : '<p class="text-xs text-zinc-500 col-span-full italic">No rooms actively occupied for this day.</p>'}
             </div>
@@ -853,44 +1043,53 @@ window.toggleEventSelectScanner = function() {
 
 // --- DATA MANAGEMENT (Users, Queries, Sponsors) ---
 window.renderAdminSearchTable = async function() {
-    const query = document.getElementById('admin-part-search').value.toLowerCase();
+    const searchInput = document.getElementById('admin-part-search');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    
     const allUsers = await window.DatabaseAPI.get('users');
     const payments = await window.DatabaseAPI.get('payments');
     const regs = await window.DatabaseAPI.get('registrations');
     const accoms = await window.DatabaseAPI.get('accommodations');
 
-    let participantUsers = [];
-    
-    allUsers.forEach(u => {
+    // MAP ALL USERS SO THEY ARE ALWAYS SEARCHABLE (even if no registrations exist yet)
+    let mappedUsers = allUsers.map(u => {
         const userRegs = regs.filter(r => r.leader === u.id || (r.members && r.members.includes(u.id)));
         const userAccom = accoms.find(a => a.id === u.id);
         const userPays = payments.filter(p => p.user === u.id);
 
-        if (userRegs.length > 0 || userAccom || userPays.length > 0) {
-            const teamCodes = userRegs.map(r => r.teamCode).filter(c => c).join(', ');
-            participantUsers.push({
-                ...u,
-                teamCodes: teamCodes || 'Individual / Stay',
-                payIds: userPays.map(p => p.id).join(', ')
-            });
-        }
+        let statusStr = "No Registrations";
+        const teamCodes = userRegs.map(r => r.teamCode).filter(c => c).join(', ');
+        
+        if (teamCodes) statusStr = teamCodes;
+        else if (userAccom) statusStr = "Accommodation Only";
+
+        return {
+            ...u,
+            teamCodes: statusStr,
+            payIds: userPays.map(p => p.id).join(', ') || 'No Payments'
+        };
     });
 
-    let filteredUsers = participantUsers;
+    let filteredUsers = mappedUsers;
     if(query) {
-        filteredUsers = participantUsers.filter(u => {
-            return u.name.toLowerCase().includes(query) || 
-                   u.id.toLowerCase().includes(query) || 
-                   u.email.toLowerCase().includes(query) ||
-                   u.teamCodes.toLowerCase().includes(query) ||
-                   u.payIds.toLowerCase().includes(query);
+        filteredUsers = mappedUsers.filter(u => {
+            const name = String(u.name || "").toLowerCase();
+            const email = String(u.email || "").toLowerCase();
+            const id = String(u.id || "").toLowerCase();
+            const teams = String(u.teamCodes || "").toLowerCase();
+            const pays = String(u.payIds || "").toLowerCase();
+            
+            return name.includes(query) || 
+                   email.includes(query) || 
+                   id.includes(query) || 
+                   teams.includes(query) ||
+                   pays.includes(query);
         });
     }
 
     const table = document.getElementById('admin-search-table');
     if(!table) return;
 
-    // Fix Table Headers Alignment
     const thead = table.closest('table').querySelector('thead tr');
     if (thead) {
         thead.innerHTML = `
@@ -910,11 +1109,11 @@ window.renderAdminSearchTable = async function() {
                 <div class="text-[9px] sm:text-[10px] text-amber-500 mt-0.5">Team: ${u.teamCodes}</div>
             </td>
             <td class="p-3 flex justify-end items-center gap-3 align-middle text-right">
-                <button onclick="event.stopPropagation(); window.openAdminReplyModal('users', '${u.id}', '${u.email}', '${u.name.replace(/'/g, "\\'")}')" class="px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[9px] sm:text-[10px] uppercase font-bold transition shadow whitespace-nowrap">Email</button>
+                <button onclick="event.stopPropagation(); window.openAdminReplyModal('users', '${u.id}', '${u.email}', '${(u.name || '').replace(/'/g, "\\'")}')" class="px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[9px] sm:text-[10px] uppercase font-bold transition shadow whitespace-nowrap">Email</button>
                 <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-500 hover:text-white transition"></i>
             </td>
         </tr>
-    `).join('') : `<tr><td colspan="4" class="p-4 text-center text-zinc-500 text-xs italic">No participants found matching the criteria.</td></tr>`;
+    `).join('') : `<tr><td colspan="4" class="p-4 text-center text-zinc-500 text-xs italic">No users found matching the criteria.</td></tr>`;
     if(typeof window.renderIcons === 'function') window.renderIcons();
 };
 
@@ -1001,7 +1200,6 @@ window.renderAdminQueries = async function() {
     const table = document.getElementById('admin-queries-table');
     if(!table) return;
 
-    // Fix Table Headers Alignment
     const thead = table.closest('table').querySelector('thead tr');
     if (thead) {
         thead.innerHTML = `
@@ -1072,7 +1270,6 @@ window.renderAdminSponsors = async function() {
     const table = document.getElementById('admin-sponsors-table');
     if(!table) return;
 
-    // Fix Table Headers Alignment
     const thead = table.closest('table').querySelector('thead tr');
     if (thead) {
         thead.innerHTML = `
@@ -1096,45 +1293,7 @@ window.renderAdminSponsors = async function() {
     `).join('') : `<tr><td colspan="4" class="p-4 text-center text-zinc-500 text-xs italic">No sponsorship applications found.</td></tr>`;
 };
 
-// --- MOCK EMAIL DISPATCH & BROADCAST ---
-window.openAdminReplyModal = function(collection, id, email, name = '') {
-    window.replyTargetCollection = collection;
-    window.replyTargetId = id;
-    window.replyTargetEmail = email;
-    
-    const targetEl = document.getElementById('adminReplyTargetEmail');
-    if (targetEl) targetEl.innerText = email;
-    
-    const subjEl = document.getElementById('adminReplySubject');
-    if (subjEl) subjEl.value = `Re: Your ${collection === 'sponsors' ? 'Sponsorship ' : ''}Inquiry`;
-    
-    const attachLinks = document.getElementById('adminReplyLinks');
-    if(attachLinks) attachLinks.value = '';
-    
-    const attachFiles = document.getElementById('adminReplyFiles');
-    if(attachFiles) attachFiles.value = '';
-    
-    const msgBox = document.getElementById('adminReplyMessage');
-    if(msgBox) {
-        msgBox.innerHTML = name && name !== "Pending User" ? `Dear <b>${name}</b>,<br><br>` : '';
-    }
-    
-    if(typeof window.openModal === 'function') window.openModal('adminReplyModal');
-};
-
-window.executeAdminReply = async function() {
-    const textMsg = document.getElementById('adminReplyMessage')?.innerHTML.trim() || "";
-    if(!textMsg) return window.showMessage("Please type a message before sending.");
-    
-    let statusText = window.replyTargetCollection === 'queries' ? 'Replied' : 'Reviewed & Replied';
-    if (window.replyTargetCollection !== 'users') {
-        await window.DatabaseAPI.update(window.replyTargetCollection, window.replyTargetId, { status: statusText, replyText: textMsg });
-    }
-    
-    if(typeof window.closeModal === 'function') window.closeModal('adminReplyModal');
-    if(typeof window.showMessage === 'function') window.showMessage(`Email sent to ${window.replyTargetEmail}!`);
-    window.renderAdminDashboard(); 
-};
+// --- MAIL DISPATCH & THREADED NOTIFICATION CHAT ---
 
 window.renderAdminMails = function(mailType = 'normal') {
     let tab = document.getElementById('admin-mails-tab');
@@ -1268,17 +1427,57 @@ window.executeBulkMail = async function() {
     const users = await window.DatabaseAPI.get('users');
     
     if (mode === 'normal') {
-        if (audience === 'all_users') count = users.length;
-        else if (audience === 'all_events') {
+        let recipientEmails = [];
+        
+        if (audience === 'all_users') {
+            recipientEmails = users;
+        } else if (audience === 'all_events') {
             const regs = await window.DatabaseAPI.get('registrations');
-            count = new Set(regs.flatMap(r => [r.leader, ...r.members])).size;
+            const userIds = new Set(regs.flatMap(r => [r.leader, ...(r.members||[])]));
+            recipientEmails = users.filter(u => userIds.has(u.id));
         } else if (audience === 'all_accom') {
             const accoms = await window.DatabaseAPI.get('accommodations');
-            count = accoms.length;
+            const userIds = new Set(accoms.map(a => a.id));
+            recipientEmails = users.filter(u => userIds.has(u.id));
         } else if (audience.startsWith('event_')) {
             const evId = audience.split('_')[1];
             const regs = await window.DatabaseAPI.get('registrations');
-            count = new Set(regs.filter(r => r.eventId === evId).flatMap(r => [r.leader, ...r.members])).size;
+            const userIds = new Set(regs.filter(r => String(r.eventId) === evId).flatMap(r => [r.leader, ...(r.members||[])]));
+            recipientEmails = users.filter(u => userIds.has(u.id));
+        }
+
+        count = recipientEmails.length;
+        
+        if (count > 0) {
+            // 1. Send actual email via API
+            try {
+                await fetch(`${window.BASE_URL}/send-mail`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subject: subject,
+                        body: textMsg,
+                        recipients: recipientEmails.map(u => ({ email: u.email, name: u.name }))
+                    })
+                });
+            } catch(e) { console.error("Bulk Mail Failed", e); }
+            
+            // 2. Add to in-app notifications
+            const threadId = "thread_" + Date.now();
+            for (let u of recipientEmails) {
+                await window.DatabaseAPI.add('notifications', {
+                    id: "notif_" + Date.now() + Math.random().toString(36).substr(2, 5),
+                    threadId: threadId,
+                    userId: u.id,
+                    senderId: 'admin',
+                    senderEmail: window.userProfile.email,
+                    type: 'chat_message', // Use generic chat message type
+                    title: subject,
+                    message: msgBox ? msgBox.innerText.trim() : "New Broadcast Message",
+                    date: new Date().toLocaleString(),
+                    isRead: 'false'
+                });
+            }
         }
     } else if (mode === 'certificate') {
         const isParticipant = audience.startsWith('cert_part_');
@@ -1490,7 +1689,6 @@ window.openGalleryDetails = function(id) {
         const img = dbPendingUploads.find(p => p.id == id);
         if (!img) return;
 
-        // 🔥 FIX: Re-use helper for the pop-up modal review window using the LH3 domain
         const getDirect = (url) => {
             if (!url) return '';
             const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/) || url.match(/id=([a-zA-Z0-9-_]+)/);
@@ -1534,6 +1732,18 @@ window.approveGalleryImage = async function(id) {
         const users = await window.DatabaseAPI.get('users');
         const userObj = users.find(u => u.name === img.user);
         if (userObj) {
+            // Push Notification to User
+            await window.DatabaseAPI.add('notifications', {
+                id: "notif_" + Date.now().toString(),
+                userId: userObj.id,
+                type: 'system_alert',
+                title: `Gallery Approval: ${img.event}`,
+                message: customMsg,
+                date: new Date().toLocaleString(),
+                isRead: 'false'
+            });
+
+            // Send Email
             fetch(`${window.BASE_URL}/send-mail`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1545,7 +1755,7 @@ window.approveGalleryImage = async function(id) {
             });
         }
         window.renderAdminDashboard();
-        if(typeof window.showMessage === 'function') window.showMessage(`Image approved! Email sent.`);
+        if(typeof window.showMessage === 'function') window.showMessage(`Image approved! Notification sent.`);
     }
 };
 
@@ -1562,6 +1772,17 @@ window.rejectGalleryImage = async function(id) {
     const users = await window.DatabaseAPI.get('users');
     const userObj = users.find(u => u.name === img.user);
     if (userObj) {
+        // Push Notification to User
+        await window.DatabaseAPI.add('notifications', {
+            id: "notif_" + Date.now().toString(),
+            userId: userObj.id,
+            type: 'system_alert',
+            title: `Gallery Submission Update`,
+            message: customMsg,
+            date: new Date().toLocaleString(),
+            isRead: 'false'
+        });
+
         fetch(`${window.BASE_URL}/send-mail`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1573,5 +1794,208 @@ window.rejectGalleryImage = async function(id) {
         });
     }
     window.renderAdminDashboard();
-    if(typeof window.showMessage === 'function') window.showMessage(`Image rejected. Email sent.`);
+    if(typeof window.showMessage === 'function') window.showMessage(`Image rejected. Notification sent.`);
+};
+
+// ==========================================
+// CHAT / THREADED NOTIFICATIONS
+// ==========================================
+
+window.prepareUserReply = async function(notifId, overrideEmail = null) {
+    const notifs = await window.DatabaseAPI.get('notifications');
+    const n = notifs.find(x => x.id === notifId);
+    
+    // Determine thread tracking. Group by threadId if available, fallback to id.
+    const threadId = n ? (n.threadId || n.id) : ('thread_' + Date.now());
+    
+    // Resolve target email for UI header
+    let targetEmail = 'Admin';
+    if (window.isAdmin && overrideEmail) {
+        targetEmail = overrideEmail;
+    } else if (n && n.senderEmail && n.senderEmail !== window.userProfile.email) {
+        targetEmail = n.senderEmail;
+    }
+
+    document.getElementById('userReplyNotifId').value = threadId;
+    document.getElementById('userReplyContext').innerHTML = `<span class="font-bold text-white">Chat with:</span> ${targetEmail}`;
+
+    // Load thread history
+    const threadMsgs = notifs.filter(x => x.threadId === threadId || x.id === threadId).sort((a,b) => new Date(a.date) - new Date(b.date));
+
+    let chatHtml = `<div id="chatHistoryBox" class="flex flex-col gap-3 mb-4 h-64 overflow-y-auto custom-scrollbar p-2 bg-black/50 rounded-xl border border-white/5">`;
+    
+    if (threadMsgs.length === 0 && n) {
+        // Legacy fallback for old notifications without proper sender tracking
+        chatHtml += `
+            <div class="bg-zinc-800 p-3 rounded-xl rounded-tl-none w-[85%] text-xs text-white">
+                <span class="text-[9px] text-zinc-400 block mb-1">${n.date}</span>
+                ${n.message}
+            </div>`;
+    } else {
+        threadMsgs.forEach(msg => {
+            const isMe = msg.senderId === window.userProfile.accountId || (window.isAdmin && msg.senderId === 'admin');
+            
+            if (isMe) {
+                chatHtml += `
+                <div class="self-end bg-rose-600/80 p-3 rounded-xl rounded-tr-none max-w-[85%] text-xs text-white shadow-md">
+                    <span class="text-[9px] text-rose-200 block mb-1 text-right">You • ${msg.date}</span>
+                    ${msg.message}
+                </div>`;
+            } else {
+                chatHtml += `
+                <div class="self-start bg-zinc-800 p-3 rounded-xl rounded-tl-none max-w-[85%] text-xs text-white shadow-md border border-white/5">
+                    <span class="text-[9px] text-zinc-400 block mb-1">${msg.senderEmail || 'User'} • ${msg.date}</span>
+                    ${msg.message}
+                </div>`;
+            }
+        });
+    }
+    
+    chatHtml += `</div>`;
+    
+    document.getElementById('userReplyContext').innerHTML += chatHtml;
+    
+    setTimeout(() => {
+        const box = document.getElementById('chatHistoryBox');
+        if(box) box.scrollTop = box.scrollHeight;
+    }, 50);
+
+    document.getElementById('userReplyMessage').value = '';
+    if(typeof window.closeModal === 'function') window.closeModal('notificationsModal');
+    if(typeof window.openModal === 'function') window.openModal('userReplyModal');
+};
+
+window.sendUserReply = async function() {
+    const msg = document.getElementById('userReplyMessage').value.trim();
+    const threadId = document.getElementById('userReplyNotifId').value;
+    
+    if (!msg) {
+        if(typeof window.showMessage === 'function') window.showMessage("Type a message first.");
+        return;
+    }
+
+    const notifs = await window.DatabaseAPI.get('notifications');
+    const threadMsgs = notifs.filter(n => n.threadId === threadId || n.id === threadId);
+    const lastMsg = threadMsgs[threadMsgs.length - 1];
+
+    // Determine the receiver based on the last message in the thread
+    let receiverId = 'admin'; // Default fallback
+    if (window.isAdmin && lastMsg) {
+        receiverId = lastMsg.senderId === 'admin' ? lastMsg.userId : lastMsg.senderId;
+    } else if (!window.isAdmin) {
+        receiverId = 'admin'; 
+    }
+
+    const newMsg = {
+        id: "notif_" + Date.now().toString(),
+        threadId: threadId,
+        userId: receiverId, // This places it in the receiver's inbox
+        senderId: window.isAdmin ? 'admin' : window.userProfile.accountId,
+        senderEmail: window.isAdmin ? 'admin@autumnfest.in' : window.userProfile.email,
+        type: "chat_message",
+        title: window.isAdmin ? `Admin Support` : `Reply from ${window.userProfile.name}`,
+        message: msg,
+        date: new Date().toLocaleString(),
+        isRead: "false"
+    };
+
+    await window.DatabaseAPI.add('notifications', newMsg);
+    
+    // Live UI Update: Append directly to the active chat box
+    const chatBox = document.getElementById('chatHistoryBox');
+    if (chatBox) {
+        chatBox.innerHTML += `
+            <div class="self-end bg-rose-600/80 p-3 rounded-xl rounded-tr-none max-w-[85%] text-xs text-white shadow-md">
+                <span class="text-[9px] text-rose-200 block mb-1 text-right">You • ${newMsg.date}</span>
+                ${newMsg.message}
+            </div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+        document.getElementById('userReplyMessage').value = '';
+    } else {
+        if(typeof window.closeModal === 'function') window.closeModal('userReplyModal');
+        if(typeof window.showMessage === 'function') window.showMessage("Message sent!");
+    }
+};
+
+window.openAdminReplyModal = function(collection, id, email, name = '') {
+    window.replyTargetCollection = collection;
+    window.replyTargetId = id;
+    window.replyTargetEmail = email;
+    
+    const targetEl = document.getElementById('adminReplyTargetEmail');
+    if (targetEl) targetEl.innerText = email;
+    
+    const subjEl = document.getElementById('adminReplySubject');
+    if (subjEl) subjEl.value = `Re: Your ${collection === 'sponsors' ? 'Sponsorship ' : ''}Inquiry`;
+    
+    const attachLinks = document.getElementById('adminReplyLinks');
+    if(attachLinks) attachLinks.value = '';
+    
+    const msgBox = document.getElementById('adminReplyMessage');
+    if(msgBox) {
+        msgBox.innerHTML = name && name !== "Pending User" ? `Dear <b>${name}</b>,<br><br>` : '';
+    }
+    
+    if(typeof window.openModal === 'function') window.openModal('adminReplyModal');
+};
+
+window.executeAdminReply = async function() {
+    const msgBox = document.getElementById('adminReplyMessage');
+    const textMsg = msgBox ? msgBox.innerHTML.trim() : "";
+    if(!textMsg) return window.showMessage("Please type a message before sending.");
+    
+    const subject = document.getElementById('adminReplySubject')?.value || "Reply from Autumn Fest";
+    const rawText = msgBox ? msgBox.innerText.trim() : "";
+    
+    // Dispatch Email
+    try {
+        await fetch(`${window.BASE_URL}/send-mail`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subject: subject,
+                body: textMsg,
+                recipients: [{ email: window.replyTargetEmail, name: "Participant" }]
+            })
+        });
+    } catch (e) {
+        console.error("Mail Dispatch Failed:", e);
+    }
+    
+    // Log Admin History in the Query/Sponsor Tracker
+    let statusText = window.replyTargetCollection === 'queries' ? 'Replied' : 'Reviewed & Replied';
+    if (window.replyTargetCollection !== 'users' && window.replyTargetCollection) {
+        const allItems = await window.DatabaseAPI.get(window.replyTargetCollection);
+        const item = allItems.find(x => x.id === window.replyTargetId);
+        
+        const historyEntry = `<div class="mt-2 p-3 bg-blue-900/20 rounded-xl border border-blue-500/30"><p class="text-[9px] text-blue-400 font-bold mb-1 uppercase tracking-widest">Admin Reply • ${new Date().toLocaleString()}</p><div class="text-xs text-white">${textMsg}</div></div>`;
+        const newReplyText = (item && item.replyText ? item.replyText : '') + historyEntry;
+        
+        await window.DatabaseAPI.update(window.replyTargetCollection, window.replyTargetId, { status: statusText, replyText: newReplyText });
+    }
+    
+    // Push In-App Threaded Notification Chat to the User
+    try {
+        const allUsers = await window.DatabaseAPI.get('users');
+        const targetUser = allUsers.find(u => u.email && u.email.toLowerCase() === window.replyTargetEmail.toLowerCase());
+        if (targetUser) {
+            const threadId = "thread_" + Date.now().toString();
+            await window.DatabaseAPI.add('notifications', {
+                id: threadId,
+                threadId: threadId,
+                userId: targetUser.id,
+                senderId: 'admin',
+                senderEmail: window.userProfile.email,
+                type: 'chat_message',
+                title: subject,
+                message: rawText,
+                date: new Date().toLocaleString(),
+                isRead: 'false'
+            });
+        }
+    } catch(e) {}
+    
+    if(typeof window.closeModal === 'function') window.closeModal('adminReplyModal');
+    if(typeof window.showMessage === 'function') window.showMessage(`Email and In-App notification sent to ${window.replyTargetEmail}!`);
+    if(typeof window.renderAdminDashboard === 'function') window.renderAdminDashboard(); 
 };

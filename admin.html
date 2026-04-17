@@ -53,10 +53,14 @@
                 <a href="sponsors.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-sponsors">Sponsors</a>
                 <a href="contact.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-contact">Contact Us</a>
                 <a href="profile.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-profile">Profile</a>
-                <a href="admin.html" class="nav-link text-sm font-bold tracking-wider uppercase text-rose-500 hover:text-rose-400 pb-1 hidden" id="nav-admin">Admin</a>
+                <a href="admin.html" class="nav-link text-sm font-bold tracking-wider uppercase text-rose-500 hover:text-rose-400 pb-1  border-b-2 border-rose-500 hidden " id="nav-admin">Admin</a>
             </div>
 
             <div class="flex items-center gap-4 z-20">
+                <button id="nav-notif-btn" onclick="window.openNotifications()" class="hidden sm:flex relative w-10 h-10 items-center justify-center bg-[#f0f4f8] dark:bg-white/10 rounded-full hover:bg-slate-200 dark:hover:bg-white/20 transition-all group mr-2">
+                    <i data-lucide="bell" class="w-5 h-5 text-slate-500 dark:text-zinc-300 group-hover:text-slate-700 dark:group-hover:text-white transition-colors"></i>
+                    <span id="desktop-notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center shadow border-2 border-white dark:border-zinc-900 hidden">0</span>
+                </button>
                 <a href="index.html" id="nav-auth-btn" class="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 hover:bg-white text-white hover:text-black font-bold text-sm transition border border-white/10">
                     <i data-lucide="log-in" class="w-4 h-4"></i> Sign In
                 </a>
@@ -78,6 +82,9 @@
                 <a href="contact.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Contact</a>
                 <a href="profile.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Profile</a>
                 <a href="admin.html" class="text-lg font-bold tracking-wider uppercase text-rose-500 hover:text-rose-400 hidden" id="mobile-nav-admin">Admin</a>
+                <a href="#" onclick="event.preventDefault(); window.openNotifications(); window.toggleMobileMenu();" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white flex items-center gap-2" id="mobile-nav-notif">
+                    Notifications <span id="mobile-notif-badge" class="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded-full hidden shadow border border-transparent">0</span>
+                </a>
             </div>
 
             <a href="index.html" id="mobile-auth-btn" class="w-11/12 max-w-xs mx-auto py-3 rounded-xl bg-rose-600 text-white font-bold tracking-wider uppercase mt-2 hover:bg-rose-500 transition-colors shadow-lg flex items-center justify-center gap-2">
@@ -115,10 +122,6 @@
                 <button id="tab-btn-events" onclick="switchAdminTab('admin-events-tab')" class="admin-tab-btn p-2 lg:px-5 lg:py-2.5 rounded-xl text-[9px] sm:text-xs lg:text-sm font-bold text-zinc-400 hover:text-white transition flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2">
                     <i data-lucide="calendar" class="w-4 h-4 lg:w-4 lg:h-4"></i>
                     <span class="truncate w-full text-center">Events</span>
-                </button>
-                <button id="tab-btn-festivals" onclick="switchAdminTab('admin-festivals-tab')" class="admin-tab-btn p-2 lg:px-5 lg:py-2.5 rounded-xl text-[9px] sm:text-xs lg:text-sm font-bold text-zinc-400 hover:text-white transition flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2">
-                    <i data-lucide="tent" class="w-4 h-4 lg:w-4 lg:h-4"></i>
-                    <span class="truncate w-full text-center">Festivals</span>
                 </button>
                 <button id="tab-btn-accom" onclick="switchAdminTab('admin-accom-tab')" class="admin-tab-btn p-2 lg:px-5 lg:py-2.5 rounded-xl text-[9px] sm:text-xs lg:text-sm font-bold text-zinc-400 hover:text-white transition flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2">
                     <i data-lucide="home" class="w-4 h-4 lg:w-4 lg:h-4"></i>
@@ -158,11 +161,13 @@
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <h3 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4 sm:w-5 sm:h-5 text-rose-500"></i> Live Overview <span class="text-[8px] sm:text-[10px] bg-white/10 px-2 py-1 rounded text-zinc-400 font-mono tracking-widest ml-2 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> LIVE</span></h3>
                     <div class="flex gap-2 sm:gap-3 w-full sm:w-auto">
-                        <select id="analyticsDayFilter" onchange="renderAnalytics()" class="flex-1 sm:flex-none bg-black/40 border border-white/10 rounded-lg px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-white focus:border-rose-500 outline-none">
+                        <select id="analyticsDayFilter" onchange="renderAnalytics(true)" class="flex-1 sm:flex-none bg-black/40 border border-white/10 rounded-lg px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-white focus:border-rose-500 outline-none">
                             <option value="all">All Days</option><option value="day1">Day 1 (Oct 20)</option><option value="day2">Day 2 (Oct 21)</option><option value="day3">Day 3 (Oct 28)</option>
                         </select>
-                        <select id="analyticsEventFilter" onchange="renderAnalytics()" class="flex-1 sm:flex-none bg-black/40 border border-white/10 rounded-lg px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-white focus:border-rose-500 outline-none">
-                            <option value="all">All Events & Fests</option><option value="e19">Starnite</option><option value="f1">Diwali Mela</option><option value="e7">Web Hackathon</option><option value="e21">Valorant</option><option value="e11">Battle of Bands</option>
+                        <select id="analyticsEventFilter" onchange="renderAnalytics(true)" class="flex-1 sm:flex-none bg-black/40 border border-white/10 rounded-lg px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-white focus:border-rose-500 outline-none">
+                            <option value="all">All Events & Fests</option>
+                            <option value="accommodation">Accommodation</option>
+                            <!-- Dynamically populated by JS below -->
                         </select>
                     </div>
                 </div>
@@ -171,12 +176,12 @@
                     <div class="bg-zinc-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 shadow-xl">
                         <p class="text-[9px] sm:text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-1 flex items-center justify-between">Total Reg <i data-lucide="users" class="w-3 h-3 sm:w-4 sm:h-4 text-blue-400"></i></p>
                         <p class="text-xl sm:text-3xl font-bold text-white" id="stat-total-reg">0</p>
-                        <p class="text-[9px] sm:text-xs text-emerald-400 mt-1 sm:mt-2 flex items-center gap-1"><i data-lucide="trending-up" class="w-3 h-3"></i> +12 today</p>
+                        <p class="text-[9px] sm:text-xs text-emerald-400 mt-1 sm:mt-2 flex items-center gap-1"><i data-lucide="trending-up" class="w-3 h-3"></i> <span id="stat-reg-today">+0 today</span></p>
                     </div>
                     <div id="stat-revenue-container" class="bg-zinc-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 shadow-xl hidden">
                         <p class="text-[9px] sm:text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-1 flex items-center justify-between">Revenue <i data-lucide="indian-rupee" class="w-3 h-3 sm:w-4 sm:h-4 text-amber-400"></i></p>
                         <p class="text-xl sm:text-3xl font-bold text-white" id="stat-revenue">₹0</p>
-                        <p class="text-[9px] sm:text-xs text-emerald-400 mt-1 sm:mt-2 flex items-center gap-1"><i data-lucide="trending-up" class="w-3 h-3"></i> +₹4,500 today</p>
+                        <p class="text-[9px] sm:text-xs text-emerald-400 mt-1 sm:mt-2 flex items-center gap-1"><i data-lucide="trending-up" class="w-3 h-3"></i> <span id="stat-rev-today">+₹0 today</span></p>
                     </div>
                     <div class="bg-zinc-900/60 border border-white/5 rounded-2xl p-4 sm:p-5 shadow-xl">
                         <p class="text-[9px] sm:text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-1 flex items-center justify-between">Scans <i data-lucide="scan" class="w-3 h-3 sm:w-4 sm:h-4 text-emerald-400"></i></p>
@@ -192,19 +197,18 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-zinc-900/40 border border-white/5 rounded-2xl p-5 sm:p-6 shadow-xl">
-                        <h4 class="text-xs sm:text-sm font-bold text-white mb-4 uppercase tracking-widest">Top Events & Fests Fill Rate</h4>
-                        <div class="space-y-4">
-                            <div><div class="flex justify-between text-[10px] sm:text-xs mb-1"><span class="text-zinc-400">Diwali Mela (Festival)</span><span class="text-white font-bold" id="pass-diwali">2000 / 2500</span></div><div class="w-full bg-black/50 rounded-full h-1.5"><div class="bg-orange-500 h-1.5 rounded-full" style="width: 80%"></div></div></div>
-                            <div><div class="flex justify-between text-[10px] sm:text-xs mb-1"><span class="text-zinc-400">Starnite Concert</span><span class="text-white font-bold" id="pass-star">1200 / 2000</span></div><div class="w-full bg-black/50 rounded-full h-1.5"><div class="bg-purple-500 h-1.5 rounded-full" style="width: 60%"></div></div></div>
-                            <div><div class="flex justify-between text-[10px] sm:text-xs mb-1"><span class="text-zinc-400">24Hr Hackathon</span><span class="text-white font-bold" id="pass-day">890 / 1000</span></div><div class="w-full bg-black/50 rounded-full h-1.5"><div class="bg-blue-500 h-1.5 rounded-full" style="width: 89%"></div></div></div>
-                            <div><div class="flex justify-between text-[10px] sm:text-xs mb-1"><span class="text-zinc-400">Gekito Shukan</span><span class="text-white font-bold" id="pass-full">450 / 500</span></div><div class="w-full bg-black/50 rounded-full h-1.5"><div class="bg-rose-500 h-1.5 rounded-full" style="width: 90%"></div></div></div>
-                            <div><div class="flex justify-between text-[10px] sm:text-xs mb-1"><span class="text-zinc-400">Valorant Tournament</span><span class="text-white font-bold" id="pass-visitor">150 / 300</span></div><div class="w-full bg-black/50 rounded-full h-1.5"><div class="bg-amber-500 h-1.5 rounded-full" style="width: 50%"></div></div></div>
+                        <h4 class="text-xs sm:text-sm font-bold text-white mb-4 uppercase tracking-widest">Top Events Registration Rate</h4>
+                        
+                        <!-- DYNAMIC CONTAINER -->
+                        <div id="dynamic-fill-rates" class="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            <p class="text-xs text-zinc-500 italic">Loading live statistics...</p>
                         </div>
+
                     </div>
                     <div class="bg-zinc-900/40 border border-white/5 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col justify-center items-center text-center">
                         <i data-lucide="bar-chart" class="w-12 h-12 sm:w-16 sm:h-16 text-zinc-700 mb-4"></i>
                         <p class="text-zinc-400 text-xs sm:text-sm">Detailed visual charts will be rendered here upon full database connection.</p>
-                        <button onclick="renderAnalytics()" class="mt-4 px-3 sm:px-4 py-1.5 sm:py-2 border border-zinc-700 text-[10px] sm:text-xs font-bold text-zinc-300 rounded hover:bg-white/5 transition"><i data-lucide="refresh-cw" class="w-3 h-3 inline mr-1"></i> Force Refresh</button>
+                        <button onclick="renderAnalytics(true)" class="mt-4 px-3 sm:px-4 py-1.5 sm:py-2 border border-zinc-700 text-[10px] sm:text-xs font-bold text-zinc-300 rounded hover:bg-white/5 transition"><i data-lucide="refresh-cw" class="w-3 h-3 inline mr-1"></i> Force Refresh</button>
                     </div>
                 </div>
             </div>
@@ -270,7 +274,8 @@
                     <h3 class="text-lg sm:text-xl font-bold text-white">Search Participants & Payments</h3>
                     <div class="relative w-full sm:w-96">
                         <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
-                        <input type="text" id="admin-part-search" onkeyup="renderAdminSearchTable()" placeholder="Search Name, Email, Account ID, or Pay ID..." class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white text-xs sm:text-sm focus:border-blue-500 outline-none">
+                        <!-- 🔥 ADDED AUTOCOMPLETE BLOCKERS HERE -->
+                        <input type="text" id="admin-part-search" autocomplete="new-password" data-lpignore="true" onkeyup="renderAdminSearchTable()" placeholder="Search Name, Email, Account ID, or Pay ID..." class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white text-xs sm:text-sm focus:border-blue-500 outline-none">
                     </div>
                 </div>
                 <div class="bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden shadow-2xl overflow-x-auto w-full">
@@ -294,7 +299,7 @@
             <div id="admin-events-tab" class="admin-panel hidden animate-[fadeInSlide_0.3s_ease-out]">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <h3 class="text-lg sm:text-xl font-bold text-white">Event List</h3>
-                    <button onclick="openAdminEventModal(null)" class="w-full sm:w-auto px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Add Event</button>
+                    <button onclick="openAdminEventModal(null)" class="w-full sm:w-auto px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Add Event/Fest</button>
                 </div>
                 <div class="bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden shadow-2xl overflow-x-auto w-full">
                     <table class="w-full text-left text-xs sm:text-sm whitespace-nowrap min-w-[600px]">
@@ -315,79 +320,9 @@
                 </div>
             </div>
 
-            <!-- TAB: FESTIVALS MANAGEMENT (L2+) -->
-            <div id="admin-festivals-tab" class="admin-panel hidden animate-[fadeInSlide_0.3s_ease-out]">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                    <h3 class="text-lg sm:text-xl font-bold text-white">Festivals List</h3>
-                    <button onclick="openAdminEventModal('festivals')" class="w-full sm:w-auto px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Add Festival</button>
-                </div>
-                <div class="bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden shadow-2xl overflow-x-auto w-full">
-                    <table class="w-full text-left text-xs sm:text-sm whitespace-nowrap min-w-[600px]">
-                        <thead class="bg-black/50 text-zinc-400 uppercase tracking-wider text-[9px] sm:text-[10px] border-b border-white/10">
-                            <tr>
-                                <th class="p-3 sm:p-4 font-bold">Festival Name</th>
-                                <th class="p-3 sm:p-4 font-bold">Category</th>
-                                <th class="p-3 sm:p-4 font-bold">Team Size</th>
-                                <th class="p-3 sm:p-4 font-bold">Fee (₹)</th>
-                                <th class="p-3 sm:p-4 font-bold">Reg. Status</th>
-                                <th class="p-3 sm:p-4 font-bold text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="admin-festivals-table" class="divide-y divide-white/5 text-zinc-200">
-                            <!-- Populated by JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
             <!-- TAB: ACCOMMODATION (L3+) -->
             <div id="admin-accom-tab" class="admin-panel hidden animate-[fadeInSlide_0.3s_ease-out]">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                    <h3 class="text-lg sm:text-xl font-bold text-white">Accommodation Management</h3>
-                    <div class="flex gap-2 w-full sm:w-auto">
-                        <button onclick="autoAssignRooms()" class="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2"><i data-lucide="users" class="w-4 h-4"></i> Auto-Assign Rooms</button>
-                        <button onclick="showMessage('Capacities Updated!')" class="flex-1 sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Save Setup</button>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <!-- Male Wing Settings -->
-                    <div class="bg-zinc-900/40 border border-white/5 rounded-2xl p-5 sm:p-6 shadow-xl">
-                        <h4 class="text-white font-bold text-base sm:text-lg mb-4 border-b border-white/10 pb-2 flex items-center gap-2">Male Wing <span class="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded uppercase">Triple Occupancy</span></h4>
-                        <div class="flex justify-between items-center bg-black/30 p-3 rounded-xl border border-white/5">
-                            <div><p class="text-xs sm:text-sm font-bold text-zinc-300">Total Rooms</p><p class="text-[9px] sm:text-[10px] text-zinc-500">Max Attendees: <span id="maleCap" class="text-emerald-400 font-bold">150</span></p></div>
-                            <input type="number" id="maleRoomsTotal" value="50" onchange="document.getElementById('maleCap').innerText = this.value * 3" class="w-16 bg-black/50 border border-zinc-700 text-center text-white rounded p-1.5 text-sm focus:border-emerald-500 outline-none">
-                        </div>
-                    </div>
-                    <!-- Female Wing Settings -->
-                    <div class="bg-zinc-900/40 border border-white/5 rounded-2xl p-5 sm:p-6 shadow-xl">
-                        <h4 class="text-white font-bold text-base sm:text-lg mb-4 border-b border-white/10 pb-2 flex items-center gap-2">Female Wing <span class="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded uppercase">Triple Occupancy</span></h4>
-                        <div class="flex justify-between items-center bg-black/30 p-3 rounded-xl border border-white/5">
-                            <div><p class="text-xs sm:text-sm font-bold text-zinc-300">Total Rooms</p><p class="text-[9px] sm:text-[10px] text-zinc-500">Max Attendees: <span id="femaleCap" class="text-emerald-400 font-bold">120</span></p></div>
-                            <input type="number" id="femaleRoomsTotal" value="40" onchange="document.getElementById('femaleCap').innerText = this.value * 3" class="w-16 bg-black/50 border border-zinc-700 text-center text-white rounded p-1.5 text-sm focus:border-emerald-500 outline-none">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Assignments Table -->
-                <div class="bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden shadow-2xl w-full">
-                     <div class="p-4 bg-black/40 border-b border-white/10"><h4 class="font-bold text-white text-sm">Room Assignments</h4></div>
-                     <div class="overflow-x-auto">
-                         <table class="w-full text-left text-xs sm:text-sm whitespace-nowrap min-w-[600px]">
-                             <thead class="bg-white/5 text-zinc-400 uppercase tracking-wider text-[9px] sm:text-[10px]">
-                                 <tr>
-                                     <th class="p-3 sm:p-4 font-bold">Account ID / Name</th>
-                                     <th class="p-3 sm:p-4 font-bold">Wing</th>
-                                     <th class="p-3 sm:p-4 font-bold">Requested Mates</th>
-                                     <th class="p-3 sm:p-4 font-bold">Room Assigned</th>
-                                 </tr>
-                             </thead>
-                             <tbody id="admin-accom-table" class="divide-y divide-white/5 text-zinc-200">
-                                 <!-- Populated via JS -->
-                             </tbody>
-                         </table>
-                     </div>
-                </div>
+                <!-- Rendered dynamically by JS -->
             </div>
 
             <!-- TAB: GALLERY APPROVALS (L2+) -->
@@ -404,7 +339,8 @@
                     <h3 class="text-lg sm:text-xl font-bold text-white">User Accounts & Roles</h3>
                     <div class="relative w-full sm:w-auto">
                         <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
-                        <input type="text" id="admin-user-search" onkeyup="searchAdminUsers()" placeholder="Search Name, Email, ID..." class="w-full sm:w-80 pl-10 pr-4 py-2 rounded-xl bg-black/50 border border-white/10 text-white text-xs sm:text-sm focus:border-blue-500 outline-none">
+                        <!-- 🔥 ADDED AUTOCOMPLETE BLOCKERS HERE -->
+                        <input type="text" id="admin-user-search" autocomplete="new-password" data-lpignore="true" onkeyup="searchAdminUsers()" placeholder="Search Name, Email, ID..." class="w-full sm:w-80 pl-10 pr-4 py-2 rounded-xl bg-black/50 border border-white/10 text-white text-xs sm:text-sm focus:border-blue-500 outline-none">
                     </div>
                 </div>
                 <div class="bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden shadow-2xl overflow-x-auto w-full">
@@ -576,7 +512,7 @@
                     <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21.582 6.186a2.686 2.686 0 0 0-1.884-1.9c-1.662-.447-8.318-.447-8.318-.447s-6.656 0-8.318.447a2.686 2.686 0 0 0-1.884 1.9C.73 7.863.73 12 .73 12s0 4.137.448 5.814a2.686 2.686 0 0 0 1.884 1.9c1.662.447 8.318.447 8.318.447s6.656 0 8.318-.447a2.686 2.686 0 0 0 1.884-1.9C22.03 16.137 22.03 12 22.03 12s0-4.137-.448-5.814ZM9.213 15.086V8.914L14.526 12l-5.313 3.086Z" /></svg>
                 </a>
                 <a href="#" aria-label="Twitter" class="w-10 h-10 sm:w-12 sm:h-12 bg-zinc-900/80 border border-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:bg-blue-400 hover:text-white transition-all hover:scale-110 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
                 </a>
                 <a href="#" aria-label="LinkedIn" class="w-10 h-10 sm:w-12 sm:h-12 bg-zinc-900/80 border border-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:bg-blue-700 hover:text-white transition-all hover:scale-110 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
                     <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clip-rule="evenodd" /></svg>
@@ -596,6 +532,108 @@
         </div>
     </footer>
 
+    <!-- Admin Event Modal (Fixes "Cannot set properties of null" error) -->
+    <div id="adminEventModal" class="fixed inset-0 z-[160] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('adminEventModal')"></div>
+        <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-2xl bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-[fadeInSlide_0.3s_ease-out]">
+            <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0 gap-4">
+                <h3 id="adminEventModalTitle" class="text-lg sm:text-xl font-bold text-white flex-1 min-w-0 truncate break-words">Create Event</h3>
+                <button onclick="closeModal('adminEventModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
+            </div>
+            <div class="p-4 sm:p-6 overflow-y-auto w-full custom-scrollbar flex-1 min-h-0">
+                <form onsubmit="event.preventDefault(); saveAdminEvent();" class="space-y-4">
+                    <input type="hidden" id="adminEvId">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Event Name</label>
+                            <input type="text" id="adminEvName" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Category</label>
+                            <select id="adminEvCat" onchange="toggleAdminEventFields()" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500 appearance-none" required>
+                                <option value="entrepreneurial">Entrepreneurial</option>
+                                <option value="tech">Tech</option>
+                                <option value="cultural">Cultural</option>
+                                <option value="shows">Shows</option>
+                                <option value="online">Online</option>
+                                <option value="festivals">Festival / Mela</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div id="wrapAdminEvFee">
+                            <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Fee (₹)</label>
+                            <input type="number" id="adminEvFee" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div id="wrapAdminEvPrize">
+                            <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Prize Pool</label>
+                            <input type="text" id="adminEvPrize" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. 5000">
+                        </div>
+                        <div id="wrapAdminEvTeam">
+                            <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Team Size</label>
+                            <input type="text" id="adminEvTeam" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. 1 or 3-5">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Date & Time</label>
+                            <input type="text" id="adminEvDate" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500" required placeholder="Oct 20, 10:00 AM">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Venue</label>
+                            <input type="text" id="adminEvVenue" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500" required placeholder="Main Auditorium">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Description</label>
+                        <textarea id="adminEvDesc" rows="3" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500" required placeholder="Event description..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-2">Event Banner</label>
+                        <div class="flex gap-2 mb-2">
+                            <button type="button" onclick="toggleEventBannerInput('file')" id="btn-ev-banner-file" class="flex-1 py-1.5 rounded bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider transition">Upload File</button>
+                            <button type="button" onclick="toggleEventBannerInput('link')" id="btn-ev-banner-link" class="flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 text-[10px] font-bold uppercase tracking-wider transition">Image Link</button>
+                        </div>
+                        <div id="ev-banner-file-container" class="w-full bg-black/40 border border-dashed border-white/20 rounded-xl p-4 text-center cursor-pointer hover:border-blue-500 transition relative">
+                            <i data-lucide="image-plus" class="w-6 h-6 sm:w-8 sm:h-8 text-zinc-500 mx-auto mb-1"></i>
+                            <p class="text-[10px] text-zinc-400" id="ev-banner-file-text">Click to upload JPG/PNG</p>
+                            <input type="file" id="adminEvBannerFile" class="absolute inset-0 opacity-0 cursor-pointer" accept=".jpg,.jpeg,.png" onchange="document.getElementById('ev-banner-file-text').innerText = this.files[0].name">
+                        </div>
+                        <input type="url" id="adminEvBannerLink" class="hidden w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-blue-500" placeholder="https://example.com/image.jpg">
+                    </div>
+                    <button type="submit" class="w-full py-3.5 mt-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition shadow-[0_0_15px_rgba(37,99,235,0.4)]">Save Event</button>
+                </form>
+            </div>
+        </div>
+    </div>
 
+    <!-- Script to dynamically populate the analytics event filter -->
+    <script>
+        window.addEventListener('db-updated', function() {
+            const filter = document.getElementById('analyticsEventFilter');
+            if(filter && window.EVENTS_DATA) {
+                const currentVal = filter.value;
+                filter.innerHTML = '<option value="all">All Events & Fests</option><option value="accommodation">Accommodation</option>';
+                Object.values(window.EVENTS_DATA).flat().forEach(ev => {
+                    const opt = document.createElement('option');
+                    opt.value = String(ev.id).toLowerCase();
+                    opt.textContent = ev.name;
+                    filter.appendChild(opt);
+                });
+                filter.value = currentVal || 'all';
+            }
+        });
+        
+        // Also explicitly clear the aggressive autofill on DOM load
+        document.addEventListener("DOMContentLoaded", function() {
+            setTimeout(function() {
+                const partSearch = document.getElementById('admin-part-search');
+                if(partSearch) partSearch.value = '';
+                
+                const userSearch = document.getElementById('admin-user-search');
+                if(userSearch) userSearch.value = '';
+            }, 50);
+        });
+    </script>
 </body>
 </html>

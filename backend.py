@@ -17,10 +17,9 @@ from email.mime.multipart import MIMEMultipart
 import sys
 import random
 import time
-import requests
 import io
 import re
-import base64
+import traceback
 from dotenv import load_dotenv
 
 # OVERRIDE=TRUE: Forces Python to ignore cached terminal variables and strictly read the .env file
@@ -76,7 +75,30 @@ def get_db_connection():
     else:
         raise Exception("Database URL missing.")
 
-# Explicit Column Definitions (Replaces dynamic SHOW COLUMNS reflection)
+# ==========================================
+# STRICT BCNF COLUMN DEFINITIONS & MAPPINGS
+# ==========================================
+# Notice: No arrays (JSON lists) are allowed in strict SQL tables here. 
+# We use Junction Tables (e.g., team_members) to handle repeating groups.
+
+# Maps the Frontend API endpoint name to the actual SQL Table name
+TABLE_MAPPING = {
+    'users': 'users',
+    'events': 'events',
+    'otps': 'otps',
+    'sponsors': 'sponsors',
+    'queries': 'queries',
+    'payments': 'payments',
+    'logs': 'logs',
+    'notifications': 'notifications',
+    'winners': 'winners',
+    'gallery': 'gallery',
+    'accommodations': 'accommodations',
+    'registrations': 'teams', # The Frontend calls them 'registrations', the DB calls them 'teams'
+    'settings': 'settings'
+}
+
+# The physical columns stored in the primary SQL tables
 TABLE_COLUMNS = {
     'users': ['id', 'name', 'email', 'password', 'role', 'phone', 'gender', 'college', 'photo'],
     'events': ['id', 'category', 'status', 'name', 'fee', 'prize', 'team', 'date', 'venue', 'banner', 'desc'],
@@ -85,11 +107,12 @@ TABLE_COLUMNS = {
     'queries': ['id', 'name', 'email', 'message', 'date', 'status', 'replyText'],
     'payments': ['id', 'amount', 'status', 'timestamp', 'userId'],
     'logs': ['id', 'type', 'timestamp', 'userId'],
-    'notifications': ['id', 'userId', 'type', 'title', 'message', 'date', 'isRead', 'senderEmail', 'relatedId'],
+    'notifications': ['id', 'threadId', 'senderId', 'userId', 'type', 'title', 'message', 'date', 'isRead', 'senderEmail', 'relatedId', 'relatedCollection'],
     'winners': ['id', 'eventId', 'firstPlace', 'secondPlace', 'thirdPlace', 'dateDeclared'],
-    'gallery': ['id', 'url', 'eventId', 'caption', 'userId', 'status', 'tags', 'likes', 'likedBy'],
-    'accommodations': ['id', 'userId', 'wing', 'duration', 'requested', 'room', 'payId'],
-    'registrations': ['id', 'eventId', 'teamName', 'teamCode', 'leader', 'members', 'payment', 'payId']
+    'gallery': ['id', 'url', 'eventId', 'caption', 'userId', 'status', 'tags', 'likes'],
+    'accommodations': ['id', 'userId', 'wing', 'duration', 'room', 'payId'],
+    'teams': ['id', 'eventId', 'teamName', 'teamCode', 'leader', 'payment', 'payId'],
+    'settings': ['id', 'maleRooms', 'femaleRooms', 'perRoom', 'data']
 }
 
 def init_db():
@@ -98,8 +121,11 @@ def init_db():
     with conn.cursor() as cursor:
         # ---------------------------------------------------------
         # PURE MYSQL COMMANDS FOR TABLE CREATION (Dependency Order)
+        # Functional Dependencies are documented inline
         # ---------------------------------------------------------
         
+        # FDs: id -> name, email, password, role, phone, gender, college, photo
+        # Candidate Keys: id, email
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id VARCHAR(100) PRIMARY KEY, 
@@ -114,6 +140,7 @@ def init_db():
             )
         """)
 
+        # FDs: id -> category, status, name, fee, prize, team, date, venue, banner, desc
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS events (
                 id VARCHAR(100) PRIMARY KEY, 
@@ -188,7 +215,9 @@ def init_db():
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS notifications (
-                id VARCHAR(100) PRIMARY KEY, 
+                id VARCHAR(100) PRIMARY KEY,
+                threadId VARCHAR(100),
+                senderId VARCHAR(100),
                 userId VARCHAR(100) NOT NULL, 
                 type VARCHAR(50), 
                 title VARCHAR(255), 
@@ -197,6 +226,7 @@ def init_db():
                 isRead VARCHAR(10) DEFAULT 'false', 
                 senderEmail VARCHAR(255), 
                 relatedId VARCHAR(100), 
+                relatedCollection VARCHAR(50),
                 FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
@@ -225,10 +255,20 @@ def init_db():
                 userId VARCHAR(100), 
                 status VARCHAR(50) DEFAULT 'pending', 
                 tags TEXT, 
-                likes INT DEFAULT 0, 
-                likedBy JSON, 
-                FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, 
+                likes INT DEFAULT 0,
+                FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY (eventId) REFERENCES events(id) ON DELETE SET NULL
+            )
+        """)
+
+        # BCNF COMPLIANT RELATION: GALLERY LIKES (Resolves Multi-Valued Attributes)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS gallery_likes (
+                gallery_id VARCHAR(100),
+                user_id VARCHAR(100),
+                PRIMARY KEY (gallery_id, user_id),
+                FOREIGN KEY (gallery_id) REFERENCES gallery(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
 
@@ -238,7 +278,6 @@ def init_db():
                 userId VARCHAR(100), 
                 wing VARCHAR(50), 
                 duration VARCHAR(100), 
-                requested TEXT, 
                 room VARCHAR(50), 
                 payId VARCHAR(100), 
                 FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE, 
@@ -246,14 +285,27 @@ def init_db():
             )
         """)
 
+        # BCNF COMPLIANT RELATION: ACCOMMODATION REQUESTS (Resolves Multi-Valued Attributes)
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS registrations (
+            CREATE TABLE IF NOT EXISTS accommodation_requests (
+                accommodation_id VARCHAR(100),
+                requested_user_id VARCHAR(100),
+                PRIMARY KEY (accommodation_id, requested_user_id),
+                FOREIGN KEY (accommodation_id) REFERENCES accommodations(id) ON DELETE CASCADE,
+                FOREIGN KEY (requested_user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+
+        # FDs: id -> eventId, teamName, teamCode, leader, payment, payId
+        # teamCode -> id (teamCode is UNIQUE, making it a Candidate Key)
+        # Because every determinant is a candidate key, this table is natively in BCNF!
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS teams (
                 id VARCHAR(100) PRIMARY KEY, 
                 eventId VARCHAR(100) NOT NULL, 
                 teamName VARCHAR(255), 
-                teamCode VARCHAR(100), 
+                teamCode VARCHAR(100) UNIQUE, 
                 leader VARCHAR(100) NOT NULL, 
-                members JSON, 
                 payment VARCHAR(50), 
                 payId VARCHAR(100), 
                 FOREIGN KEY (eventId) REFERENCES events(id) ON DELETE CASCADE, 
@@ -262,16 +314,31 @@ def init_db():
             )
         """)
 
+        # BCNF COMPLIANT RELATION: TEAM MEMBERS
+        # Storing names here would violate BCNF (transitive dependency). We solely store user_id.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS team_members (
+                team_id VARCHAR(100),
+                user_id VARCHAR(100),
+                PRIMARY KEY (team_id, user_id),
+                FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                id VARCHAR(100) PRIMARY KEY, 
+                maleRooms INT DEFAULT 150, 
+                femaleRooms INT DEFAULT 120, 
+                perRoom INT DEFAULT 3, 
+                data JSON
+            )
+        """)
+
     conn.commit()
     conn.close()
 
 init_db()
-
-EVENT_MAP = {
-    'e1': 'B-Plan', 'e2': 'Marcatus', 'e4': 'Robo Race', 'e7': 'Web Hackathon',
-    'e11': 'Battle of Bands', 'e13': 'Group Dance', 'e17': 'Comedy Night',
-    'e19': 'Starnite', 'e21': 'Valorant', 'f1': 'Diwali Mela'
-}
 
 # ==========================================
 # 2. GOOGLE SHEETS LIVE SYNC
@@ -298,25 +365,31 @@ def get_gspread_client():
             print("Failed to auth Google Sheets API:", str(e))
     return _gspread_client
 
-def sync_to_google_sheets(collection_name):
-    if collection_name not in TABLE_COLUMNS:
-        return
+def sync_to_google_sheets(api_collection_name):
+    # Map the API collection name to the physical SQL table name
+    db_table_name = TABLE_MAPPING.get(api_collection_name)
+    if not db_table_name: return
+    
     try:
         client = get_gspread_client()
         if not client: return
         
         sheet_file = client.open("AutumnFest_LiveDB")
         try:
-            worksheet = sheet_file.worksheet(collection_name)
+            worksheet = sheet_file.worksheet(api_collection_name)
         except gspread.exceptions.WorksheetNotFound:
-            worksheet = sheet_file.add_worksheet(title=collection_name, rows="1000", cols="20")
+            worksheet = sheet_file.add_worksheet(title=api_collection_name, rows="1000", cols="20")
 
         conn = get_db_connection()
         with conn.cursor() as cursor:
             cursor.execute("SELECT id, name FROM users")
             users_records = cursor.fetchall()
             
+            cursor.execute("SELECT id, name FROM events")
+            events_records = cursor.fetchall()
+            
         id_to_name = { u['id']: u.get('name', u['id']) for u in users_records }
+        event_id_to_name = { e['id']: e.get('name', e['id']) for e in events_records }
 
         def get_name(raw_id):
             if not raw_id or raw_id == 'null' or raw_id == 'None' or raw_id == 'Pending': return raw_id
@@ -324,19 +397,30 @@ def sync_to_google_sheets(collection_name):
             return id_to_name.get(raw_id, raw_id)
 
         with conn.cursor() as cursor:
-            # Using Explicit SQL for specific collection
-            if collection_name == 'users': cursor.execute("SELECT * FROM users")
-            elif collection_name == 'events': cursor.execute("SELECT * FROM events")
-            elif collection_name == 'otps': cursor.execute("SELECT * FROM otps")
-            elif collection_name == 'sponsors': cursor.execute("SELECT * FROM sponsors")
-            elif collection_name == 'queries': cursor.execute("SELECT * FROM queries")
-            elif collection_name == 'payments': cursor.execute("SELECT * FROM payments")
-            elif collection_name == 'logs': cursor.execute("SELECT * FROM logs")
-            elif collection_name == 'notifications': cursor.execute("SELECT * FROM notifications")
-            elif collection_name == 'winners': cursor.execute("SELECT * FROM winners")
-            elif collection_name == 'gallery': cursor.execute("SELECT * FROM gallery")
-            elif collection_name == 'accommodations': cursor.execute("SELECT * FROM accommodations")
-            elif collection_name == 'registrations': cursor.execute("SELECT * FROM registrations")
+            # The Sync dynamically pulls from the BCNF tables and aggregates them for the sheet viewer
+            if api_collection_name == 'gallery':
+                cursor.execute("""
+                    SELECT g.*, 
+                           COALESCE((SELECT CONCAT('[', GROUP_CONCAT(CONCAT('"', user_id, '"')), ']') 
+                                     FROM gallery_likes WHERE gallery_id = g.id), '[]') as likedBy 
+                    FROM gallery g
+                """)
+            elif api_collection_name == 'registrations':
+                cursor.execute("""
+                    SELECT t.*, 
+                           COALESCE((SELECT CONCAT('[', GROUP_CONCAT(CONCAT('"', user_id, '"')), ']') 
+                                     FROM team_members WHERE team_id = t.id), '[]') as members 
+                    FROM teams t
+                """)
+            elif api_collection_name == 'accommodations':
+                cursor.execute("""
+                    SELECT a.*, 
+                           COALESCE((SELECT GROUP_CONCAT(requested_user_id SEPARATOR ', ') 
+                                     FROM accommodation_requests WHERE accommodation_id = a.id), '') as requested 
+                    FROM accommodations a
+                """)
+            else:
+                cursor.execute(f"SELECT * FROM {db_table_name}")
             records = cursor.fetchall()
         conn.close()
         
@@ -354,7 +438,7 @@ def sync_to_google_sheets(collection_name):
                     except: pass
                 
             if 'eventId' in doc_data:
-                doc_data['eventName'] = EVENT_MAP.get(doc_data['eventId'], doc_data['eventId'])
+                doc_data['eventName'] = event_id_to_name.get(doc_data['eventId'], doc_data['eventId'])
                 del doc_data['eventId']
             if 'leader' in doc_data:
                 doc_data['leaderName'] = get_name(doc_data['leader'])
@@ -390,9 +474,26 @@ def sync_to_google_sheets(collection_name):
             
         worksheet.clear()
         worksheet.update('A1', rows)
-        print(f"Successfully synced {collection_name} to Google Sheets!")
+        print(f"Successfully synced {api_collection_name} to Google Sheets!")
     except Exception as e:
         print(f"Sync skipped/failed: {str(e)}")
+
+# 🔥 Background Thread to catch Manual Database Interventions (via Raw SQL)
+def periodic_sync_to_sheets():
+    """
+    Runs continuously in the background. Every 5 minutes it forces a
+    sync to Google Sheets to ensure raw SQL modifications are captured.
+    """
+    while True:
+        time.sleep(300) # Wait 5 minutes
+        print("[Auto-Sync] Running periodic background sync to Google Sheets...")
+        try:
+            for api_collection in TABLE_MAPPING.keys():
+                sync_to_google_sheets(api_collection)
+                time.sleep(2) # Prevent Sheets API rate limit (60 requests/minute)
+            print("[Auto-Sync] Periodic sync completed.")
+        except Exception as e:
+            print(f"[Auto-Sync] Error during background sync: {e}")
 
 # ==========================================
 # 3. GOOGLE DRIVE UPLOAD
@@ -438,30 +539,43 @@ def copy_drive_file(url):
         return url
 
 # ==========================================
-# 4. EXPLICIT SQL API ENDPOINTS (No Database Reflection)
+# 4. EXPLICIT SQL API ENDPOINTS (BCNF Aware)
 # ==========================================
 
 @app.route('/api/<collection>', methods=['GET'])
 def get_collection(collection):
-    if collection not in TABLE_COLUMNS:
+    db_table_name = TABLE_MAPPING.get(collection)
+    if not db_table_name:
         return jsonify({"error": "Invalid table"}), 400
 
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            # Using Pure Explicit SQL SELECT commands
-            if collection == 'users': cursor.execute("SELECT * FROM users")
-            elif collection == 'events': cursor.execute("SELECT * FROM events")
-            elif collection == 'otps': cursor.execute("SELECT * FROM otps")
-            elif collection == 'sponsors': cursor.execute("SELECT * FROM sponsors")
-            elif collection == 'queries': cursor.execute("SELECT * FROM queries")
-            elif collection == 'payments': cursor.execute("SELECT * FROM payments")
-            elif collection == 'logs': cursor.execute("SELECT * FROM logs")
-            elif collection == 'notifications': cursor.execute("SELECT * FROM notifications")
-            elif collection == 'winners': cursor.execute("SELECT * FROM winners")
-            elif collection == 'gallery': cursor.execute("SELECT * FROM gallery")
-            elif collection == 'accommodations': cursor.execute("SELECT * FROM accommodations")
-            elif collection == 'registrations': cursor.execute("SELECT * FROM registrations")
+            # Reconstruct JSON arrays dynamically from BCNF Tables so Frontend stays intact
+            if collection == 'gallery':
+                cursor.execute("""
+                    SELECT g.*, 
+                           COALESCE((SELECT CONCAT('[', GROUP_CONCAT(CONCAT('"', user_id, '"')), ']') 
+                                     FROM gallery_likes WHERE gallery_id = g.id), '[]') as likedBy 
+                    FROM gallery g
+                """)
+            elif collection == 'registrations':
+                cursor.execute("""
+                    SELECT t.*, 
+                           COALESCE((SELECT CONCAT('[', GROUP_CONCAT(CONCAT('"', user_id, '"')), ']') 
+                                     FROM team_members WHERE team_id = t.id), '[]') as members 
+                    FROM teams t
+                """)
+            elif collection == 'accommodations':
+                cursor.execute("""
+                    SELECT a.*, 
+                           COALESCE((SELECT GROUP_CONCAT(requested_user_id SEPARATOR ', ') 
+                                     FROM accommodation_requests WHERE accommodation_id = a.id), '') as requested 
+                    FROM accommodations a
+                """)
+            else:
+                cursor.execute(f"SELECT * FROM {db_table_name}")
+            
             records = cursor.fetchall()
     finally:
         conn.close()
@@ -478,7 +592,9 @@ def get_collection(collection):
 
 @app.route('/api/<collection>', methods=['POST'])
 def add_document(collection):
-    if collection not in TABLE_COLUMNS: return jsonify({"error": "Invalid table"}), 400
+    db_table_name = TABLE_MAPPING.get(collection)
+    if not db_table_name: return jsonify({"error": "Invalid table"}), 400
+    
     data = request.json
     if not data.get('id') and collection != 'otps': return jsonify({"error": "Missing 'id' field"}), 400
 
@@ -489,25 +605,52 @@ def add_document(collection):
     if collection == 'events' and data.get('banner') and 'drive.google.com' in data['banner']:
         data['banner'] = copy_drive_file(data['banner'])
 
+    doc_id = data.get('id')
+    
+    # Isolate relational mapping data so it doesn't try inserting arrays into strings
+    liked_by = data.pop('likedBy', None)
+    members = data.pop('members', None)
+    requested = data.pop('requested', None)
+
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            # We enforce explicitly coded columns from our dictionary instead of querying the database
-            valid_columns = TABLE_COLUMNS[collection]
+            valid_columns = TABLE_COLUMNS[db_table_name]
 
             filtered_data = {k: (json.dumps(v) if isinstance(v, (list, dict)) else v) for k, v in data.items() if k in valid_columns}
             keys = list(filtered_data.keys())
             values = list(filtered_data.values())
             
-            # Constructs explicit INSERT INTO statements purely based on allowed explicit schema
             safe_keys = [f"`{k}`" for k in keys]
             placeholders = ', '.join(['%s'] * len(values))
             update_clause = ', '.join([f"`{k}`=VALUES(`{k}`)" for k in keys if k != 'id' and k != 'email'])
             
-            sql = f"INSERT INTO {collection} ({', '.join(safe_keys)}) VALUES ({placeholders})"
+            sql = f"INSERT INTO {db_table_name} ({', '.join(safe_keys)}) VALUES ({placeholders})"
             if update_clause: sql += f" ON DUPLICATE KEY UPDATE {update_clause}"
 
             cursor.execute(sql, tuple(values))
+            
+            # Execute secondary BCNF Relational Table Population
+            if collection == 'gallery' and liked_by is not None:
+                if isinstance(liked_by, str): 
+                    try: liked_by = json.loads(liked_by)
+                    except: liked_by = []
+                for uid in liked_by:
+                    cursor.execute("INSERT IGNORE INTO gallery_likes (gallery_id, user_id) VALUES (%s, %s)", (doc_id, uid))
+                    
+            if collection == 'registrations' and members is not None:
+                if isinstance(members, str):
+                    try: members = json.loads(members)
+                    except: members = []
+                for uid in members:
+                    cursor.execute("INSERT IGNORE INTO team_members (team_id, user_id) VALUES (%s, %s)", (doc_id, uid))
+                    
+            if collection == 'accommodations' and requested is not None:
+                if requested and requested != 'None':
+                    reqs = [x.strip() for x in requested.split(',')]
+                    for uid in reqs:
+                        cursor.execute("INSERT IGNORE INTO accommodation_requests (accommodation_id, requested_user_id) VALUES (%s, %s)", (doc_id, uid))
+                        
         conn.commit()
     except Exception as e: return jsonify({"error": str(e)}), 500
     finally: conn.close()
@@ -517,27 +660,58 @@ def add_document(collection):
 
 @app.route('/api/<collection>/<doc_id>', methods=['PUT'])
 def update_document(collection, doc_id):
-    if collection not in TABLE_COLUMNS: return jsonify({"error": "Invalid table"}), 400
+    db_table_name = TABLE_MAPPING.get(collection)
+    if not db_table_name: return jsonify({"error": "Invalid table"}), 400
+    
     updates = request.json
     updates.pop('id', None)
 
     if not updates: return jsonify({"success": True}), 200
 
+    # Isolate relational mapping data
+    liked_by = updates.pop('likedBy', None)
+    members = updates.pop('members', None)
+    requested = updates.pop('requested', None)
+
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            valid_columns = TABLE_COLUMNS[collection]
-
+            valid_columns = TABLE_COLUMNS[db_table_name]
             filtered_updates = {k: (json.dumps(v) if isinstance(v, (list, dict)) else v) for k, v in updates.items() if k in valid_columns}
-            if not filtered_updates: return jsonify({"success": True}), 200
+            
+            if filtered_updates:
+                keys = list(filtered_updates.keys())
+                values = list(filtered_updates.values())
+                set_clause = ', '.join([f"`{k}` = %s" for k in keys])
+                values.append(doc_id)
 
-            keys = list(filtered_updates.keys())
-            values = list(filtered_updates.values())
-            set_clause = ', '.join([f"`{k}` = %s" for k in keys])
-            values.append(doc_id)
+                sql = f"UPDATE {db_table_name} SET {set_clause} WHERE id = %s"
+                cursor.execute(sql, tuple(values))
 
-            sql = f"UPDATE {collection} SET {set_clause} WHERE id = %s"
-            cursor.execute(sql, tuple(values))
+            # Sync secondary BCNF mappings dynamically
+            if collection == 'gallery' and liked_by is not None:
+                cursor.execute("DELETE FROM gallery_likes WHERE gallery_id = %s", (doc_id,))
+                if isinstance(liked_by, str): 
+                    try: liked_by = json.loads(liked_by)
+                    except: liked_by = []
+                for uid in liked_by:
+                    cursor.execute("INSERT IGNORE INTO gallery_likes (gallery_id, user_id) VALUES (%s, %s)", (doc_id, uid))
+
+            if collection == 'registrations' and members is not None:
+                cursor.execute("DELETE FROM team_members WHERE team_id = %s", (doc_id,))
+                if isinstance(members, str):
+                    try: members = json.loads(members)
+                    except: members = []
+                for uid in members:
+                    cursor.execute("INSERT IGNORE INTO team_members (team_id, user_id) VALUES (%s, %s)", (doc_id, uid))
+
+            if collection == 'accommodations' and requested is not None:
+                cursor.execute("DELETE FROM accommodation_requests WHERE accommodation_id = %s", (doc_id,))
+                if requested and requested != 'None':
+                    reqs = [x.strip() for x in requested.split(',')]
+                    for uid in reqs:
+                        cursor.execute("INSERT IGNORE INTO accommodation_requests (accommodation_id, requested_user_id) VALUES (%s, %s)", (doc_id, uid))
+
         conn.commit()
     except Exception as e: return jsonify({"error": str(e)}), 500
     finally: conn.close()
@@ -547,25 +721,18 @@ def update_document(collection, doc_id):
 
 @app.route('/api/<collection>/<doc_id>', methods=['DELETE'])
 def delete_document(collection, doc_id):
-    if collection not in TABLE_COLUMNS: return jsonify({"error": "Invalid table"}), 400
+    db_table_name = TABLE_MAPPING.get(collection)
+    if not db_table_name: return jsonify({"error": "Invalid table"}), 400
 
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            # Using Pure Explicit SQL DELETE commands
-            if collection == 'users': cursor.execute("DELETE FROM users WHERE id = %s", (doc_id,))
-            elif collection == 'events': cursor.execute("DELETE FROM events WHERE id = %s", (doc_id,))
-            elif collection == 'otps': cursor.execute("DELETE FROM otps WHERE email = %s", (doc_id,))
-            elif collection == 'sponsors': cursor.execute("DELETE FROM sponsors WHERE id = %s", (doc_id,))
-            elif collection == 'queries': cursor.execute("DELETE FROM queries WHERE id = %s", (doc_id,))
-            elif collection == 'payments': cursor.execute("DELETE FROM payments WHERE id = %s", (doc_id,))
-            elif collection == 'logs': cursor.execute("DELETE FROM logs WHERE id = %s", (doc_id,))
-            elif collection == 'notifications': cursor.execute("DELETE FROM notifications WHERE id = %s", (doc_id,))
-            elif collection == 'winners': cursor.execute("DELETE FROM winners WHERE id = %s", (doc_id,))
-            elif collection == 'gallery': cursor.execute("DELETE FROM gallery WHERE id = %s", (doc_id,))
-            elif collection == 'accommodations': cursor.execute("DELETE FROM accommodations WHERE id = %s", (doc_id,))
-            elif collection == 'registrations': cursor.execute("DELETE FROM registrations WHERE id = %s", (doc_id,))
-            
+            # Using Pure Explicit SQL DELETE commands (Foreign Keys resolve dependents gracefully!)
+            sql = f"DELETE FROM {db_table_name} WHERE id = %s"
+            if collection == 'otps':
+                sql = f"DELETE FROM {db_table_name} WHERE email = %s"
+                
+            cursor.execute(sql, (doc_id,))
             affected = cursor.rowcount
         conn.commit()
     except Exception as e: return jsonify({"error": str(e)}), 500
@@ -647,20 +814,34 @@ def signup_otp():
                 sender_password = os.getenv('MAIL_PASSWORD')
                 
                 if not sender_email or not sender_password:
+                    print("\n🚨 MAIL CREDENTIALS MISSING: Check your .env file for MAIL_USERNAME and MAIL_PASSWORD")
                     return jsonify({"error": "Admin email credentials missing in .env!"}), 500
                     
-                server = smtplib.SMTP('smtp.gmail.com', 587)
-                server.starttls()
-                server.login(sender_email, sender_password)
-                msg = MIMEMultipart()
-                msg['From'] = f"Autumn Fest <{sender_email}>"
-                msg['To'] = email
-                msg['Subject'] = "Your Autumn Fest Registration OTP"
-                msg.attach(MIMEText(f"Welcome to Autumn Fest! Your OTP for account registration is: <b>{otp}</b>. It expires in 10 minutes.", 'html'))
-                server.send_message(msg)
-                server.quit()
-                
-                return jsonify({"success": True, "message": "OTP sent to email"}), 200
+                try:
+                    server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+                    server.ehlo()
+                    server.starttls()
+                    server.login(sender_email, sender_password)
+                    
+                    msg = MIMEMultipart()
+                    msg['From'] = f"Autumn Fest <{sender_email}>"
+                    msg['To'] = email
+                    msg['Subject'] = "Your Autumn Fest Registration OTP"
+                    msg.attach(MIMEText(f"Welcome to Autumn Fest! Your OTP for account registration is: <b>{otp}</b>. It expires in 10 minutes.", 'html', 'utf-8'))
+                    server.send_message(msg)
+                    server.quit()
+                    
+                    return jsonify({"success": True, "message": "OTP sent to email"}), 200
+                except smtplib.SMTPAuthenticationError as auth_err:
+                    print("\n🚨 GOOGLE AUTHENTICATION ERROR 🚨")
+                    print("Are you using your normal Gmail password? Google blocks this!")
+                    print("You MUST generate a 16-digit 'App Password' from your Google Account settings.")
+                    print(f"Details: {str(auth_err)}")
+                    return jsonify({"error": "SMTP Authentication failed. Check Server logs."}), 500
+                except Exception as mail_err:
+                    print("\n🚨 UNKNOWN MAIL ERROR 🚨")
+                    traceback.print_exc()
+                    return jsonify({"error": f"Mail failed to send: {str(mail_err)}"}), 500
 
             elif action == 'verify':
                 otp = data.get('otp')
@@ -675,6 +856,7 @@ def signup_otp():
                 return jsonify({"success": True, "message": "OTP verified successfully"}), 200
 
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
@@ -702,23 +884,30 @@ def send_otp_route():
         if not sender_email or not sender_password:
             return jsonify({"error": "Admin email credentials missing in .env!"}), 500
             
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        msg = MIMEMultipart()
-        msg['From'] = f"Autumn Fest <{sender_email}>"
-        msg['To'] = email
-        msg['Subject'] = "Your Password Reset OTP"
-        msg.attach(MIMEText(f"Your OTP for password reset is: <b>{otp}</b>. It expires in 10 minutes.", 'html'))
-        server.send_message(msg)
-        server.quit()
-        
-        return jsonify({"success": True, "message": "OTP sent"}), 200
+        try:
+            server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+            server.ehlo()
+            server.starttls()
+            server.login(sender_email, sender_password)
+            msg = MIMEMultipart()
+            msg['From'] = f"Autumn Fest <{sender_email}>"
+            msg['To'] = email
+            msg['Subject'] = "Your Password Reset OTP"
+            msg.attach(MIMEText(f"Your OTP for password reset is: <b>{otp}</b>. It expires in 10 minutes.", 'html', 'utf-8'))
+            server.send_message(msg)
+            server.quit()
+            
+            return jsonify({"success": True, "message": "OTP sent"}), 200
+        except smtplib.SMTPAuthenticationError as auth_err:
+            print("\n🚨 GOOGLE AUTHENTICATION ERROR 🚨 (Use a 16-digit App Password)")
+            print(f"Details: {str(auth_err)}")
+            return jsonify({"error": "SMTP Auth failed."}), 500
+            
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
-
 
 @app.route('/api/reset-password', methods=['POST'])
 def reset_password_route():
@@ -747,7 +936,6 @@ def reset_password_route():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
-
 
 @app.route('/api/auth/forgot-password', methods=['POST'])
 def forgot_password():
@@ -779,18 +967,23 @@ def forgot_password():
                 if not sender_email or not sender_password:
                     return jsonify({"error": "Admin email credentials missing in .env!"}), 500
                     
-                server = smtplib.SMTP('smtp.gmail.com', 587)
-                server.starttls()
-                server.login(sender_email, sender_password)
-                msg = MIMEMultipart()
-                msg['From'] = f"Autumn Fest <{sender_email}>"
-                msg['To'] = email
-                msg['Subject'] = "Your Password Reset OTP"
-                msg.attach(MIMEText(f"Your OTP for password reset is: <b>{otp}</b>. It expires in 10 minutes.", 'html'))
-                server.send_message(msg)
-                server.quit()
-                
-                return jsonify({"success": True, "message": "OTP sent"}), 200
+                try:
+                    server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+                    server.ehlo()
+                    server.starttls()
+                    server.login(sender_email, sender_password)
+                    msg = MIMEMultipart()
+                    msg['From'] = f"Autumn Fest <{sender_email}>"
+                    msg['To'] = email
+                    msg['Subject'] = "Your Password Reset OTP"
+                    msg.attach(MIMEText(f"Your OTP for password reset is: <b>{otp}</b>. It expires in 10 minutes.", 'html', 'utf-8'))
+                    server.send_message(msg)
+                    server.quit()
+                    return jsonify({"success": True, "message": "OTP sent"}), 200
+                except smtplib.SMTPAuthenticationError as auth_err:
+                    print("\n🚨 GOOGLE AUTHENTICATION ERROR 🚨 (Use a 16-digit App Password)")
+                    print(f"Details: {str(auth_err)}")
+                    return jsonify({"error": "SMTP Auth failed."}), 500
 
             elif action == 'verify_and_reset':
                 otp = data.get('otp')
@@ -812,7 +1005,6 @@ def forgot_password():
     finally:
         conn.close()
 
-
 @app.route('/api/send-mail', methods=['POST'])
 def send_bulk_mail():
     data = request.json
@@ -830,7 +1022,8 @@ def send_bulk_mail():
         return jsonify({"error": "Admin email credentials missing in .env!"}), 500
 
     try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.ehlo()
         server.starttls()
         server.login(sender_email, sender_password)
 
@@ -844,7 +1037,7 @@ def send_bulk_mail():
             msg['From'] = f"Autumn Fest <{sender_email}>"
             msg['To'] = person['email']
             msg['Subject'] = subject
-            msg.attach(MIMEText(personalized_body, 'html'))
+            msg.attach(MIMEText(personalized_body, 'html', 'utf-8'))
 
             server.send_message(msg)
             sent_count += 1
@@ -852,10 +1045,19 @@ def send_bulk_mail():
         server.quit()
         return jsonify({"success": True, "message": f"Sent {sent_count} emails"}), 200
         
+    except smtplib.SMTPAuthenticationError as auth_err:
+        print("\n🚨 GOOGLE AUTHENTICATION ERROR (send-mail) 🚨")
+        print("You MUST generate a 16-digit 'App Password' from your Google Account settings.")
+        print(f"Details: {str(auth_err)}")
+        return jsonify({"error": "SMTP Authentication failed. Check terminal."}), 500
     except Exception as e:
         print("Mail Error: ", str(e))
-        return jsonify({"error": str(e)}), 500
+        traceback.print_exc()
+        return jsonify({"error": f"SMTP Error: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    get_gspread_client()
+    # Start the daemon thread to watch for raw SQL changes and update Sheets continuously
+    sync_thread = threading.Thread(target=periodic_sync_to_sheets, daemon=True)
+    sync_thread.start()
+    
     app.run(debug=True, port=5000, threaded=True)

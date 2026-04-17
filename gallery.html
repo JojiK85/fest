@@ -7,20 +7,43 @@
     <meta name="view-transition" content="same-origin">
     <title>Gallery - AUTUMN 2026 | College Fest</title>
     
-    <!-- Shared Styles -->
-    <link rel="stylesheet" href="shared.css">
-    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script src="shared.js"></script>
-    <script src="gallery.js"></script>
+    
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        @keyframes fadeInSlide {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes popHeart {
+            0% { transform: scale(0.5); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(244,63,94,0.5); }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .leaf { position: absolute; top: -10%; animation: fall linear infinite; pointer-events: none;}
+        @keyframes fall {
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translate(100px, 100vh) rotate(360deg); opacity: 0; }
+        }
+    </style>
 </head>
-<body class="relative">
+<body class="relative bg-black text-white font-sans">
 
     <!-- ================= AMBIENT BACKGROUND ================= -->
     <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
@@ -49,15 +72,21 @@
                 <a href="sponsors.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-sponsors">Sponsors</a>
                 <a href="contact.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-contact">Contact Us</a>
                 <a href="profile.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-profile">Profile</a>
+                <!-- Shared.js dynamically injects the red notification counter badge into these admin links -->
                 <a href="admin.html" class="nav-link text-sm font-bold tracking-wider uppercase text-rose-500 hover:text-rose-400 pb-1 hidden" id="nav-admin">Admin</a>
             </div>
 
             <div class="flex items-center gap-4 z-20">
+                 <!-- Pre-rendered Notification Bell for Instant Load -->
+                <button id="nav-notif-btn" onclick="window.openNotifications()" class="hidden sm:flex relative w-10 h-10 items-center justify-center bg-[#f0f4f8] dark:bg-white/10 rounded-full hover:bg-slate-200 dark:hover:bg-white/20 transition-all group mr-2">
+                    <i data-lucide="bell" class="w-5 h-5 text-slate-500 dark:text-zinc-300 group-hover:text-slate-700 dark:group-hover:text-white transition-colors"></i>
+                    <span id="desktop-notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center shadow border-2 border-white dark:border-zinc-900 hidden">0</span>
+                </button>
                 <a href="index.html" id="nav-auth-btn" class="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 hover:bg-white text-white hover:text-black font-bold text-sm transition border border-white/10">
                     <i data-lucide="log-in" class="w-4 h-4"></i> Sign In
                 </a>
 
-                <button class="md:hidden text-white" id="mobile-menu-btn" onclick="toggleMobileMenu()">
+                <button class="md:hidden text-white" id="mobile-menu-btn" onclick="window.toggleMobileMenu()">
                     <i data-lucide="menu" class="w-6 h-6"></i>
                 </button>
             </div>
@@ -74,6 +103,10 @@
                 <a href="contact.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Contact</a>
                 <a href="profile.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Profile</a>
                 <a href="admin.html" class="text-lg font-bold tracking-wider uppercase text-rose-500 hover:text-rose-400 hidden" id="mobile-nav-admin">Admin</a>
+                <!-- Pre-rendered Mobile Notification Link for Instant Load -->
+                <a href="#" onclick="event.preventDefault(); window.openNotifications(); window.toggleMobileMenu();" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white flex items-center gap-2" id="mobile-nav-notif">
+                    Notifications <span id="mobile-notif-badge" class="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded-full hidden shadow border border-transparent">0</span>
+                </a>
             </div>
 
             <a href="index.html" id="mobile-auth-btn" class="w-11/12 max-w-xs mx-auto py-3 rounded-xl bg-rose-600 text-white font-bold tracking-wider uppercase mt-2 hover:bg-rose-500 transition-colors shadow-lg flex items-center justify-center gap-2">
@@ -95,9 +128,9 @@
                 <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                     <div class="relative flex-grow sm:flex-grow-0">
                         <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
-                        <input type="text" id="gallery-search" onkeyup="searchGallery()" placeholder="Search events, tags..." class="w-full sm:w-64 pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900/60 border border-white/10 text-white text-sm focus:outline-none focus:border-rose-500 transition">
+                        <input type="text" id="gallery-search" onkeyup="window.searchGallery()" placeholder="Search events, tags..." class="w-full sm:w-64 pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900/60 border border-white/10 text-white text-sm focus:outline-none focus:border-rose-500 transition">
                     </div>
-                    <button class="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-500 transition shrink-0" onclick="showUploadModal()">
+                    <button class="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-500 transition shrink-0" onclick="window.showUploadModal()">
                         <i data-lucide="upload-cloud" class="w-4 h-4"></i> Add Moment
                     </button>
                 </div>
@@ -150,6 +183,8 @@
     </footer>
 
     <!-- Shared Scripts -->
+    <script src="shared.js"></script>
+    <script src="gallery.js"></script>
 
 </body>
 </html>

@@ -9,9 +9,19 @@
             if (parsed.currentRole >= 1) document.documentElement.classList.add('is-admin');
             if (parsed.isLoggedIn) document.documentElement.classList.add('is-logged-in');
             
-            // ANTI-FLICKER: Hide higher-tier admin tabs instantly before the DOM even renders
             const role = parsed.currentRole || 0;
             let css = '';
+            
+            // 🔥 INSTANT NAVBAR FIX: Forces Admin & Notification buttons to appear instantly at 0ms
+            if (role >= 1) {
+                css += '#nav-admin { display: inline-block !important; } ';
+                css += '#mobile-nav-admin { display: block !important; } ';
+            }
+            if (parsed.isLoggedIn) {
+                css += '#nav-notif-btn, #mobile-nav-notif { display: flex !important; } ';
+            }
+
+            // Admin Dashboard access controls
             if (role < 4) css += '#danger-zone-container { display: none !important; } ';
             if (role < 3) css += '#tab-btn-settings { display: none !important; } ';
             if (role < 2) css += '#tab-btn-events, #tab-btn-prizes, #tab-btn-accom, #tab-btn-gallery, #tab-btn-users, #tab-btn-queries, #tab-btn-sponsors { display: none !important; } ';
@@ -30,7 +40,6 @@
 // ==========================================
 window.injectSharedComponents = function() {
     const modalsHTML = `
-        <!-- Team QR Modal -->
         <div id="teamQrModal" class="fixed inset-0 z-[140] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('teamQrModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
@@ -50,7 +59,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Accom QR Modal -->
         <div id="accomQrModal" class="fixed inset-0 z-[140] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('accomQrModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
@@ -70,7 +78,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Admin User Profile Modal -->
         <div id="adminUserProfileModal" class="fixed inset-0 z-[140] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('adminUserProfileModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-2xl bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
@@ -83,7 +90,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Admin Details Popup (Queries, Sponsors, Gallery) -->
         <div id="adminDetailsModal" class="fixed inset-0 z-[160] hidden items-center justify-center p-4 sm:p-6">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('adminDetailsModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-lg bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
@@ -98,7 +104,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Admin Add/Pre-assign User Modal -->
         <div id="adminAddUserModal" class="fixed inset-0 z-[150] hidden items-center justify-center p-4 sm:p-6">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('adminAddUserModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
@@ -125,7 +130,31 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Admin Reply Modal for Queries & Sponsors -->
+        <div id="accomSettingsModal" class="fixed inset-0 z-[160] hidden items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('accomSettingsModal')"></div>
+            <div class="relative w-full max-h-[85dvh] max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-[fadeInSlide_0.3s_ease-out]">
+                <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5 text-blue-400"></i> Capacity Settings</h3>
+                    <button onclick="closeModal('accomSettingsModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                <div class="p-4 sm:p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1">
+                    <div>
+                        <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Max Male Rooms</label>
+                        <input type="number" id="adminMaleRooms" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Max Female Rooms</label>
+                        <input type="number" id="adminFemaleRooms" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Persons Per Room</label>
+                        <input type="number" id="adminPerRoom" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <button onclick="window.saveAccomSettings()" class="w-full py-3 mt-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-[0_0_15px_rgba(37,99,235,0.4)]">Save Configuration</button>
+                </div>
+            </div>
+        </div>
+
         <div id="adminReplyModal" class="fixed inset-0 z-[150] hidden items-center justify-center p-4 sm:p-6">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('adminReplyModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-xl bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
@@ -160,12 +189,11 @@ window.injectSharedComponents = function() {
                         </div>
                         <div id="adminReplyMessage" contenteditable="true" placeholder="Type your formatted email response here..." class="rich-editor-content flex-1 p-3 sm:p-4 text-white text-xs sm:text-sm focus:outline-none overflow-y-auto w-full break-words"></div>
                     </div>
-                    <button onclick="executeAdminReply()" class="w-full py-3 sm:py-3.5 mt-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition shadow-[0_0_15px_rgba(37,99,235,0.4)] flex justify-center items-center gap-2 shrink-0"><i data-lucide="send" class="w-4 h-4"></i> Send Email & Update Status</button>
+                    <button onclick="window.executeAdminReply()" class="w-full py-3 sm:py-3.5 mt-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition shadow-[0_0_15px_rgba(37,99,235,0.4)] flex justify-center items-center gap-2 shrink-0"><i data-lucide="send" class="w-4 h-4"></i> Send Email & Update Status</button>
                 </div>
             </div>
         </div>
 
-        <!-- Sponsor Form Modal -->
         <div id="sponsorModal" class="fixed inset-0 z-[120] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('sponsorModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
@@ -204,7 +232,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Forgot Password Modal -->
         <div id="forgotPasswordModal" class="fixed inset-0 z-[160] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('forgotPasswordModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col p-6 text-center">
@@ -224,7 +251,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Signup OTP Modal -->
         <div id="signupOtpModal" class="fixed inset-0 z-[160] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('signupOtpModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col p-6 text-center">
@@ -237,7 +263,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Profile Edit Modal -->
         <div id="profileEditModal" class="fixed inset-0 z-[120] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('profileEditModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
@@ -267,7 +292,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Event Details Modal (Fully Responsive) -->
         <div id="eventModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('eventModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-4xl bg-[#0c0c0e] border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-[fadeInSlide_0.3s_ease-out]">
@@ -299,7 +323,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Registration Modal (Fully Responsive) -->
         <div id="registerModal" class="fixed inset-0 z-[110] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('registerModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-2xl bg-[#0c0c0e] border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-[fadeInSlide_0.3s_ease-out]">
@@ -326,7 +349,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Upload Modal with AI -->
         <div id="uploadModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('uploadModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
@@ -360,7 +382,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Razorpay Mock Modal -->
         <div id="razorpayModal" class="fixed inset-0 z-[150] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('razorpayModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col animate-[fadeInSlide_0.3s_ease-out]" id="rzpBox">
@@ -403,78 +424,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Admin Event Form Modal -->
-        <div id="adminEventModal" class="fixed inset-0 z-[120] hidden items-center justify-center p-4">
-            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('adminEventModal')"></div>
-            <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-2xl bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-[fadeInSlide_0.3s_ease-out]">
-                <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0 gap-4">
-                    <h3 id="adminEventModalTitle" class="text-lg sm:text-xl font-bold text-white flex-1 min-w-0 truncate break-words">Create/Edit Event</h3>
-                    <button onclick="closeModal('adminEventModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
-                </div>
-                <div class="overflow-y-auto w-full flex-1 min-h-0 custom-scrollbar">
-                    <form onsubmit="event.preventDefault(); window.saveAdminEvent();" class="p-4 sm:p-6 space-y-4">
-                        <input type="hidden" id="adminEvId">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="col-span-1 sm:col-span-2"><label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Name</label><input id="adminEvName" type="text" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500" required></div>
-                            <div class="col-span-1">
-                                <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Category</label>
-                                <select id="adminEvCat" onchange="window.toggleAdminEventFields()" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500 appearance-none" required>
-                                    <option value="entrepreneurial">Entrepreneurial</option><option value="tech">Tech</option><option value="cultural">Cultural</option><option value="shows">Shows</option><option value="online">Online Events</option><option value="festivals">Festivals (Banner)</option>
-                                </select>
-                            </div>
-                            <div class="col-span-1" id="wrapAdminEvFee"><label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Fee (₹)</label><input id="adminEvFee" type="number" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500" required></div>
-                            <div class="col-span-1" id="wrapAdminEvPrize"><label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Prize Pool / Coupons</label><input id="adminEvPrize" type="text" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500" required></div>
-                            <div class="col-span-1" id="wrapAdminEvTeam"><label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Team Size (e.g. 1 or 2-4)</label><input id="adminEvTeam" type="text" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500" required></div>
-                            <div class="col-span-1"><label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Date</label><input id="adminEvDate" type="text" placeholder="Oct 20, 2026" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500" required></div>
-                            <div class="col-span-1"><label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Venue</label><input id="adminEvVenue" type="text" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500" required></div>
-                            
-                            <div class="col-span-1 sm:col-span-2">
-                                <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-2">Banner (For Festivals)</label>
-                                <div class="flex gap-2 mb-3">
-                                    <button type="button" onclick="window.toggleEventBannerInput('file')" id="btn-ev-banner-file" class="flex-1 py-1.5 rounded bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider transition">Upload File</button>
-                                    <button type="button" onclick="window.toggleEventBannerInput('link')" id="btn-ev-banner-link" class="flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700">Image Link</button>
-                                </div>
-                                <div id="ev-banner-file-container" class="w-full bg-black/40 border border-dashed border-white/20 rounded-xl p-3 sm:p-4 text-center cursor-pointer hover:border-rose-500 transition relative">
-                                    <i data-lucide="image-plus" class="w-5 h-5 sm:w-6 sm:h-6 text-zinc-500 mx-auto mb-1"></i>
-                                    <p class="text-[8px] sm:text-[10px] text-zinc-400" id="ev-banner-file-text">Click to upload JPG/PNG</p>
-                                    <input type="file" id="adminEvBannerFile" accept=".jpg,.jpeg,.png" class="absolute inset-0 opacity-0 cursor-pointer" onchange="document.getElementById('ev-banner-file-text').innerText = this.files[0].name">
-                                </div>
-                                <input type="url" id="adminEvBannerLink" class="hidden w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500" placeholder="https://...">
-                            </div>
-
-                            <div class="col-span-1 sm:col-span-2"><label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Description</label><textarea id="adminEvDesc" rows="3" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500 resize-none" required></textarea></div>
-                        </div>
-                        <button type="submit" class="w-full py-3 sm:py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm sm:text-base font-bold transition mt-2 sm:mt-4 mb-4">Save</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Admin Participants Modal -->
-        <div id="adminParticipantsModal" class="fixed inset-0 z-[130] hidden items-center justify-center p-4">
-            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('adminParticipantsModal')"></div>
-            <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-3xl bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-[fadeInSlide_0.3s_ease-out]">
-                <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0 gap-4">
-                    <h3 class="text-lg sm:text-xl font-bold text-white flex-1 min-w-0 truncate break-words">Participants: <span id="adminPartEventName" class="text-rose-500"></span></h3>
-                    <div class="flex gap-2 sm:gap-3 shrink-0">
-                        <button onclick="window.DatabaseAPI.exportToCSV('registrations')" class="px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 rounded-lg text-[10px] sm:text-xs font-bold transition flex items-center gap-1"><i data-lucide="download" class="w-3 h-3"></i> CSV</button>
-                        <button onclick="closeModal('adminParticipantsModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full"><i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
-                    </div>
-                </div>
-                <div class="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0 w-full custom-scrollbar">
-                    <div class="bg-black/40 border border-white/5 rounded-2xl overflow-hidden overflow-x-auto w-full">
-                        <table class="w-full text-left text-xs sm:text-sm whitespace-nowrap min-w-[400px]">
-                            <thead class="bg-zinc-900/50 text-zinc-400 uppercase tracking-wider text-[9px] sm:text-[10px] border-b border-white/10">
-                                <tr><th class="p-3 sm:p-4 font-bold text-left align-middle">Team / Name</th><th class="p-3 sm:p-4 font-bold text-left align-middle">Code</th><th class="p-3 sm:p-4 font-bold text-left align-middle">Members</th><th class="p-3 sm:p-4 font-bold text-right align-middle">Payment</th></tr>
-                            </thead>
-                            <tbody id="admin-participants-table" class="divide-y divide-white/5 text-zinc-200"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 🔥 NEW: Notifications Modal -->
         <div id="notificationsModal" class="fixed inset-0 z-[160] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('notificationsModal')"></div>
             <div class="relative w-full max-h-[85dvh] max-w-[calc(100vw-2rem)] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-[fadeInSlide_0.3s_ease-out]">
@@ -486,7 +435,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- 🔥 NEW: User Reply to Admin Modal -->
         <div id="userReplyModal" class="fixed inset-0 z-[170] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('userReplyModal')"></div>
             <div class="relative w-full max-h-[85dvh] max-w-lg bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-[fadeInSlide_0.3s_ease-out]">
@@ -495,7 +443,7 @@ window.injectSharedComponents = function() {
                     <button onclick="closeModal('userReplyModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
                 <div class="p-4 flex-1 overflow-y-auto">
-                    <p class="text-xs text-zinc-400 mb-3" id="userReplyContext">Replying to...</p>
+                    <div class="text-xs text-zinc-400 mb-3 flex flex-col w-full" id="userReplyContext">Replying to...</div>
                     <input type="hidden" id="userReplyNotifId">
                     <textarea id="userReplyMessage" rows="4" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500" placeholder="Type your reply to the events team..."></textarea>
                     <button onclick="window.sendUserReply()" class="w-full py-3 mt-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-lg flex justify-center items-center gap-2"><i data-lucide="send" class="w-4 h-4"></i> Send Reply</button>
@@ -503,7 +451,6 @@ window.injectSharedComponents = function() {
             </div>
         </div>
 
-        <!-- Toast Message -->
         <div id="toast" class="fixed bottom-4 right-4 bg-zinc-800 border border-zinc-700 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 z-[200] flex items-center gap-2 max-w-[calc(100vw-2rem)] break-words">
             <i data-lucide="check-circle" class="text-emerald-500 w-4 h-4 sm:w-5 sm:h-5 shrink-0"></i>
             <span id="toastMsg" class="text-xs sm:text-sm font-medium">Message</span>
@@ -511,7 +458,6 @@ window.injectSharedComponents = function() {
     `;
     document.body.insertAdjacentHTML('beforeend', modalsHTML);
     
-    // Inject Razorpay Script safely
     const rzpScript = document.createElement('script');
     rzpScript.src = "https://checkout.razorpay.com/v1/checkout.js";
     document.body.appendChild(rzpScript);
@@ -520,15 +466,14 @@ window.injectSharedComponents = function() {
 };
 
 // ==========================================
-// 2. DATABASE API (Hybrid: Memory Cache + Flask Backend)
+// 2. DATABASE API
 // ==========================================
-window.BASE_URL = 'https://autumn-fest-backend.onrender.com/api'; // Or https://autumn-fest-backend.onrender.com/api
+window.BASE_URL = 'http://localhost:5000/api'; 
 
 window.DatabaseAPI = {
     _data: {
-        users: [], accommodations: [], registrations: [], payments: [], gallery: [], sponsors: [], queries: [], logs: [], winners: [], events: [], notifications: []
+        users: [], accommodations: [], registrations: [], payments: [], gallery: [], sponsors: [], queries: [], logs: [], winners: [], events: [], notifications: [], settings: []
     },
-    _cacheTimeKey: 'autumn_fest_last_fetch',
     
     async _fetchWithTimeout(url, options = {}) {
         const controller = new AbortController();
@@ -547,6 +492,7 @@ window.DatabaseAPI = {
         const stored = localStorage.getItem('autumn_fest_db');
         if (stored) this._data = { ...this._data, ...JSON.parse(stored) };
         if (!neededCollections.includes('events')) neededCollections.push('events');
+        if (!neededCollections.includes('settings')) neededCollections.push('settings'); 
 
         const fetchTask = async () => {
             try {
@@ -558,19 +504,16 @@ window.DatabaseAPI = {
                 
                 await Promise.all(promises);
                 await this.save(); 
-                localStorage.setItem(this._cacheTimeKey, Date.now().toString());
                 
                 window.EVENTS_DATA = window.groupEventsData(this._data.events || []);
-                if(typeof updateDynamicCalendar === 'function') window.updateDynamicCalendar();
                 window.dispatchEvent(new CustomEvent('db-updated'));
             } catch (e) {
-                console.warn("Backend offline or timed out. Relying strictly on local cache.");
+                console.warn("Backend offline. Using local cache.");
             }
         };
 
         if (stored && this._data.users && this._data.users.length > 0) {
             window.EVENTS_DATA = window.groupEventsData(this._data.events || []);
-            if(typeof window.updateDynamicCalendar === 'function') window.updateDynamicCalendar();
             fetchTask(); 
         } else {
             await fetchTask(); 
@@ -579,8 +522,8 @@ window.DatabaseAPI = {
     
     async save() { localStorage.setItem('autumn_fest_db', JSON.stringify(this._data)); },
 
-    async get(collection) { 
-        if (!this._data[collection] || this._data[collection].length === 0) {
+    async get(collection, forceFetch = false) { 
+        if (forceFetch || !this._data[collection] || this._data[collection].length === 0) {
             try {
                 const res = await this._fetchWithTimeout(`${window.BASE_URL}/${collection}`);
                 if (res.ok) {
@@ -596,6 +539,7 @@ window.DatabaseAPI = {
         if (!this._data[collection]) this._data[collection] = [];
         this._data[collection].push(item);
         await this.save();
+        window.dispatchEvent(new CustomEvent('db-updated')); 
         try {
             await this._fetchWithTimeout(`${window.BASE_URL}/${collection}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item)
@@ -608,6 +552,7 @@ window.DatabaseAPI = {
         if (index > -1) {
             this._data[collection][index] = { ...this._data[collection][index], ...updates };
             await this.save();
+            window.dispatchEvent(new CustomEvent('db-updated'));
         }
         try {
             await this._fetchWithTimeout(`${window.BASE_URL}/${collection}/${id}`, {
@@ -619,6 +564,7 @@ window.DatabaseAPI = {
     async delete(collection, id) {
         this._data[collection] = this._data[collection].filter(i => i.id !== id);
         await this.save();
+        window.dispatchEvent(new CustomEvent('db-updated')); 
         try { await this._fetchWithTimeout(`${window.BASE_URL}/${collection}/${id}`, { method: 'DELETE' }); } catch(e) {}
     },
 
@@ -730,6 +676,41 @@ window.saveCache = function() {
   localStorage.setItem(window.CACHE_KEY, JSON.stringify(state));
 };
 
+window.getAccomSettings = async function() {
+    const settings = await window.DatabaseAPI.get('settings');
+    const accomSettings = settings.find(s => s.id === 'accom_capacity');
+    if (accomSettings) return accomSettings;
+    return { id: 'accom_capacity', maleRooms: 150, femaleRooms: 120, perRoom: 3 };
+};
+
+window.checkAccomAvailability = async function(wing, daysArray) {
+    let accoms = [];
+    try {
+        const res = await window.DatabaseAPI._fetchWithTimeout(`${window.BASE_URL}/accommodations`);
+        if (res.ok) {
+            accoms = await res.json();
+            window.DatabaseAPI._data['accommodations'] = accoms; 
+        } else {
+            accoms = await window.DatabaseAPI.get('accommodations');
+        }
+    } catch(e) {
+        accoms = await window.DatabaseAPI.get('accommodations');
+    }
+
+    const settings = await window.getAccomSettings();
+    const maxRooms = wing === 'male' ? parseInt(settings.maleRooms || 150) : parseInt(settings.femaleRooms || 120);
+    const perRoom = parseInt(settings.perRoom || 3);
+    const maxCapacity = maxRooms * perRoom;
+    
+    for (let day of daysArray) {
+        const bookedOnDay = accoms.filter(a => a.wing === wing && a.duration.includes(day)).length;
+        if (bookedOnDay >= maxCapacity) {
+            return { available: false, day: day };
+        }
+    }
+    return { available: true };
+};
+
 // ==========================================
 // 4. INITIALIZATION & UTILITIES
 // ==========================================
@@ -739,6 +720,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     let path = window.location.pathname;
     let currentPage = path.split('/').pop().replace('.html', '');
     if (!currentPage || currentPage === 'index') currentPage = 'landing';
+
+    window.highlightNavLinks(currentPage);
+
+    if (currentPage === 'profile') {
+        const pCont = document.getElementById('profile-container');
+        if (pCont) {
+            pCont.innerHTML = `
+                <div class="col-span-full py-20 flex flex-col items-center justify-center w-full">
+                    <div class="w-12 h-12 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(225,29,72,0.5)]"></div>
+                    <p class="text-zinc-400 text-sm font-bold uppercase tracking-widest animate-pulse">Loading Profile Data...</p>
+                </div>
+            `;
+        }
+    }
 
     let neededCollections = ['users', 'events']; 
     if (currentPage === 'profile') neededCollections.push('registrations', 'payments', 'accommodations');
@@ -775,8 +770,45 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!window.isLoggedIn) return;
         if (typeof window.updateAdminBadges === 'function') window.updateAdminBadges();
         if (typeof window.refreshNotificationBadges === 'function') window.refreshNotificationBadges();
+        
+        // Keep active Admin Dashboard tables perfectly synced / live
+        if (window.isAdmin) {
+            const tabs = [
+                { id: 'admin-analytics-tab', fn: () => { if(typeof window.renderAnalytics === 'function') window.renderAnalytics(false); } },
+                { id: 'admin-accom-tab', fn: window.renderAdminAccomTable },
+                { id: 'admin-search-tab', fn: window.renderAdminSearchTable },
+                { id: 'admin-queries-tab', fn: window.renderAdminQueries },
+                { id: 'admin-sponsors-tab', fn: window.renderAdminSponsors }
+            ];
+            tabs.forEach(tab => {
+                const el = document.getElementById(tab.id);
+                if (el && !el.classList.contains('hidden') && typeof tab.fn === 'function') {
+                    tab.fn();
+                }
+            });
+        }
     });
 });
+
+window.highlightNavLinks = function(page) {
+    if (!page || page === 'index' || page === 'landing') page = 'home';
+
+    document.querySelectorAll('#desktop-nav-links a').forEach(link => {
+        const href = link.getAttribute('href');
+        if(href && href.includes(page)) {
+            link.style.borderBottom = "2px solid #f43f5e";
+            link.style.paddingBottom = "2px";
+            link.style.color = "white";
+        }
+    });
+
+    document.querySelectorAll('#mobile-nav-links a').forEach(link => {
+        const href = link.getAttribute('href');
+        if(href && href.includes(page)) {
+            link.style.color = "#f43f5e";
+        }
+    });
+};
 
 window.restoreSession = async function() {
     const cached = localStorage.getItem(window.CACHE_KEY);
@@ -836,9 +868,6 @@ window.showMessage = function(msg) {
   }, 3000);
 };
 
-// ==========================================
-// 5. NAVIGATION & GLOBAL UI
-// ==========================================
 window.navigate = function(pageId) {
     const protectedRoutes = ['home', 'events', 'gallery', 'sponsors', 'accommodation', 'contact', 'profile', 'admin'];
     if (!window.isLoggedIn && protectedRoutes.includes(pageId)) {
@@ -897,8 +926,9 @@ window.finalizeLoginUI = function() {
         if (typeof window.updateAdminBadges === 'function') window.updateAdminBadges();
     }
     
-    // Inject Bell
-    window.injectNotificationBell();
+    // Notifications no longer dynamically injected (handled by anti-flicker css + html now)
+    if(typeof renderIcons === 'function') renderIcons();
+    window.refreshNotificationBadges();
 };
 
 window.handleLogout = function() {
@@ -923,46 +953,73 @@ window.updateGlobalStatus = function(status) {
   window.showMessage(`Fest status changed to: ${status.toUpperCase()}`);
 };
 
-// ==========================================
-// 🔥 NEW: NOTIFICATIONS & INBOX (Mobile/Desktop)
-// ==========================================
+window.updateAdminBadges = async function() {
+    if (!window.isAdmin) return;
 
-window.injectNotificationBell = function() {
-    if (!window.isLoggedIn) return;
+    try {
+        const queries = await window.DatabaseAPI.get('queries');
+        const sponsors = await window.DatabaseAPI.get('sponsors');
+        const gallery = await window.DatabaseAPI.get('gallery');
 
-    // Desktop Bell
-    const desktopNav = document.querySelector('nav .flex.items-center.gap-4.z-20');
-    if (desktopNav && !document.getElementById('nav-notif-btn')) {
-        desktopNav.insertAdjacentHTML('afterbegin', `
-            <button id="nav-notif-btn" onclick="window.openNotifications()" class="hidden sm:flex relative p-2 text-zinc-400 hover:text-white transition">
-                <i data-lucide="bell" class="w-5 h-5"></i>
-                <span id="desktop-notif-badge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full hidden border border-black shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span>
-            </button>
-        `);
-    }
+        const pendingQueries = queries.filter(q => q.status === 'Pending').length;
+        const pendingSponsors = sponsors.filter(s => s.status === 'Pending').length;
+        const pendingGallery = gallery.filter(g => g.status === 'Pending').length;
 
-    // Mobile Menu Button
-    const mobileNav = document.getElementById('mobile-nav-links');
-    if (mobileNav && !document.getElementById('mobile-nav-notif')) {
-        mobileNav.insertAdjacentHTML('beforeend', `
-            <a href="#" onclick="event.preventDefault(); window.openNotifications(); window.toggleMobileMenu();" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white flex items-center gap-2" id="mobile-nav-notif">
-                Notifications <span id="mobile-notif-badge" class="px-2 py-0.5 bg-rose-600 text-white text-[10px] rounded-full hidden shadow-lg">New</span>
-            </a>
-        `);
-    }
-    
-    if(typeof renderIcons === 'function') renderIcons();
-    window.refreshNotificationBadges();
+        const totalPending = pendingQueries + pendingSponsors + pendingGallery;
+
+        const updateNavBadge = (navId, count) => {
+            const navEl = document.getElementById(navId);
+            if (!navEl) return;
+            let navBadge = navEl.querySelector('.admin-nav-badge');
+            if (!navBadge) {
+                navBadge = document.createElement('span');
+                navBadge.className = 'admin-nav-badge ml-1.5 px-1.5 py-0.5 bg-rose-600 text-white text-[9px] font-black rounded-full shadow-lg';
+                navEl.appendChild(navBadge);
+            }
+            navBadge.innerText = count;
+            navBadge.style.display = count > 0 ? 'inline-block' : 'none';
+        };
+
+        updateNavBadge('nav-admin', totalPending);
+        updateNavBadge('mobile-nav-admin', totalPending);
+
+        const updateTabBadge = (tabId, count) => {
+            const btn = document.getElementById(tabId);
+            if (!btn) return;
+            let badge = btn.querySelector('.admin-tab-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'admin-tab-badge absolute top-1 right-1 sm:static sm:ml-2 px-1.5 py-0.5 bg-rose-600 text-white text-[9px] font-black rounded-full min-w-[20px] text-center shadow-lg transition-transform duration-300';
+                btn.classList.add('relative');
+                btn.appendChild(badge);
+            }
+            badge.innerText = count;
+            if (count > 0) {
+                badge.style.display = 'inline-block';
+                badge.classList.add('scale-110');
+                setTimeout(() => badge.classList.remove('scale-110'), 200);
+            } else {
+                badge.style.display = 'none';
+            }
+        };
+
+        updateTabBadge('tab-btn-queries', pendingQueries);
+        updateTabBadge('tab-btn-sponsors', pendingSponsors);
+        updateTabBadge('tab-btn-gallery', pendingGallery);
+    } catch(e) {}
 };
 
 window.refreshNotificationBadges = async function() {
     if (!window.isLoggedIn) return;
     try {
         const allNotifs = await window.DatabaseAPI.get('notifications');
-        const myUnread = allNotifs.filter(n => n.userId === window.userProfile.accountId && n.isRead === 'false');
+        const myUnread = allNotifs.filter(n => (n.userId === window.userProfile.accountId || (window.isAdmin && n.userId === 'admin')) && String(n.isRead) === 'false');
         
         const dBadge = document.getElementById('desktop-notif-badge');
-        if(dBadge) dBadge.style.display = myUnread.length > 0 ? 'block' : 'none';
+        if(dBadge) {
+            dBadge.style.display = myUnread.length > 0 ? 'inline-block' : 'none';
+            dBadge.innerText = myUnread.length;
+        }
         
         const mBadge = document.getElementById('mobile-notif-badge');
         if(mBadge) {
@@ -978,79 +1035,349 @@ window.openNotifications = async function() {
     openModal('notificationsModal');
 
     const allNotifs = await window.DatabaseAPI.get('notifications');
-    let myNotifs = allNotifs.filter(n => n.userId === window.userProfile.accountId).sort((a,b) => new Date(b.date) - new Date(a.date));
+    let myNotifs = allNotifs.filter(n => n.userId === window.userProfile.accountId || (window.isAdmin && n.userId === 'admin'));
 
     if (myNotifs.length === 0) {
         list.innerHTML = `<div class="text-center p-8 text-zinc-500 italic text-sm">No notifications yet.</div>`;
         return;
     }
 
-    list.innerHTML = myNotifs.map(n => {
+    // Group by threadId
+    const threads = {};
+    myNotifs.forEach(n => {
+        const tId = n.threadId || n.id;
+        if (!threads[tId]) {
+            threads[tId] = { messages: [], unreadCount: 0 };
+        }
+        threads[tId].messages.push(n);
+        if (String(n.isRead) === 'false') threads[tId].unreadCount++;
+    });
+
+    // Sort threads by the date of their latest message
+    const sortedThreads = Object.values(threads).map(t => {
+        t.messages.sort((a, b) => new Date(a.date) - new Date(b.date)); // Oldest to newest
+        t.latestMessage = t.messages[t.messages.length - 1];
+        return t;
+    }).sort((a, b) => new Date(b.latestMessage.date) - new Date(a.latestMessage.date)); // Newest thread first
+
+    list.innerHTML = sortedThreads.map(t => {
+        const n = t.latestMessage;
+        const msgCount = t.messages.length;
+        const unread = t.unreadCount > 0;
+
         let actionBtn = '';
-        if (n.type === 'admin_reply') {
-            actionBtn = `<button onclick="window.prepareUserReply('${n.id}')" class="mt-3 px-4 py-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded-lg text-[10px] font-bold border border-blue-500/30 transition">Reply to Admin</button>`;
+        if (n.type === 'admin_reply' || n.type === 'user_reply' || n.type === 'chat_message') {
+            actionBtn = `<button onclick="event.stopPropagation(); window.prepareUserReply('${n.threadId || n.id}')" class="mt-3 px-4 py-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded-lg text-[10px] font-bold border border-blue-500/30 transition">Open Chat (${msgCount} messages)</button>`;
         } else if (n.type === 'team_invite') {
             actionBtn = `<div class="flex gap-2 mt-3">
-                <button onclick="window.acceptTeamInvite('${n.relatedId}', '${n.id}')" class="px-4 py-1.5 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 rounded-lg text-[10px] font-bold border border-emerald-500/30 transition">Accept</button>
-                <button onclick="window.DatabaseAPI.delete('notifications', '${n.id}'); window.openNotifications();" class="px-4 py-1.5 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-lg text-[10px] font-bold transition">Decline</button>
+                <button onclick="event.stopPropagation(); window.acceptTeamInvite('${n.relatedId}', '${n.id}')" class="px-4 py-1.5 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 rounded-lg text-[10px] font-bold border border-emerald-500/30 transition">Accept</button>
+                <button onclick="event.stopPropagation(); window.DatabaseAPI.delete('notifications', '${n.id}'); window.openNotifications();" class="px-4 py-1.5 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-lg text-[10px] font-bold transition">Decline</button>
             </div>`;
+        } else {
+            // System alerts
+            actionBtn = `<button onclick="event.stopPropagation(); window.DatabaseAPI.delete('notifications', '${n.id}'); window.openNotifications();" class="mt-3 px-4 py-1.5 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-lg text-[10px] font-bold transition">Dismiss</button>`;
         }
 
         return `
-        <div class="bg-black/40 border border-white/5 p-3 sm:p-4 rounded-xl relative overflow-hidden group">
-            ${n.isRead === 'false' ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,1)]"></div>' : ''}
+        <div class="bg-black/40 border border-white/5 p-3 sm:p-4 rounded-xl relative overflow-hidden group cursor-pointer" onclick="if('${n.type}'.includes('reply') || '${n.type}' === 'chat_message') window.prepareUserReply('${n.threadId || n.id}')">
+            ${unread ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,1)]"></div>' : ''}
             <div class="flex justify-between items-start mb-1 pl-2">
-                <h4 class="text-white font-bold text-xs sm:text-sm">${n.title}</h4>
-                <span class="text-[9px] text-zinc-500">${n.date}</span>
+                <h4 class="text-white font-bold text-xs sm:text-sm flex items-center gap-2">
+                    ${n.title} 
+                    ${msgCount > 1 ? `<span class="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded text-[8px]">${msgCount} msgs</span>` : ''}
+                </h4>
+                <span class="text-[9px] text-zinc-500 shrink-0 ml-2">${n.date.split(',')[0]}</span>
             </div>
-            <div class="text-[10px] sm:text-xs text-zinc-300 pl-2 whitespace-pre-wrap">${n.message}</div>
+            <div class="text-[10px] sm:text-xs text-zinc-400 pl-2 line-clamp-2">${n.senderId === window.userProfile.accountId ? 'You: ' : ''}${n.message}</div>
             <div class="pl-2">${actionBtn}</div>
         </div>`;
     }).join('');
 
-    // Mark as read in the background
-    myNotifs.filter(n => n.isRead === 'false').forEach(async n => {
+    myNotifs.filter(n => String(n.isRead) === 'false').forEach(async n => {
         await window.DatabaseAPI.update('notifications', n.id, { isRead: 'true' });
     });
     
     setTimeout(window.refreshNotificationBadges, 1000);
 };
 
-window.prepareUserReply = async function(notifId) {
+window.prepareUserReply = async function(threadId, overrideEmail = null) {
     const notifs = await window.DatabaseAPI.get('notifications');
-    const n = notifs.find(x => x.id === notifId);
-    if (!n) return;
     
-    document.getElementById('userReplyNotifId').value = notifId;
-    document.getElementById('userReplyContext').innerText = `Replying to: "${n.title}"`;
+    // Get all messages in this thread
+    const threadMsgs = notifs.filter(x => x.threadId === threadId || x.id === threadId).sort((a,b) => new Date(a.date) - new Date(b.date));
+    
+    if (threadMsgs.length === 0) return;
+    
+    const n = threadMsgs[threadMsgs.length - 1]; // Latest message for context
+    
+    // Resolve target email for UI header
+    let targetEmail = 'Admin';
+    if (window.isAdmin && overrideEmail) {
+        targetEmail = overrideEmail;
+    } else if (window.isAdmin && n.senderId !== 'admin') {
+        targetEmail = n.senderEmail || 'User';
+    } else if (!window.isAdmin) {
+        targetEmail = 'Events Team';
+    }
+
+    document.getElementById('userReplyNotifId').value = threadId;
+    document.getElementById('userReplyContext').innerHTML = `<span class="font-bold text-white">Chat:</span> ${n.title} <span class="text-[10px] text-zinc-500 ml-2">with ${targetEmail}</span>`;
+
+    let chatHtml = `<div id="chatHistoryBox" class="flex flex-col gap-3 mt-3 mb-4 h-64 overflow-y-auto custom-scrollbar p-3 bg-black/50 rounded-xl border border-white/5">`;
+    
+    threadMsgs.forEach(msg => {
+        const isMe = msg.senderId === window.userProfile.accountId || (window.isAdmin && msg.senderId === 'admin');
+        
+        if (isMe) {
+            chatHtml += `
+            <div class="self-end bg-rose-600/80 p-3 rounded-xl rounded-tr-none max-w-[85%] text-xs text-white shadow-md whitespace-pre-wrap">
+                <span class="text-[9px] text-rose-200 block mb-1 text-right">You • ${msg.date}</span>
+                ${msg.message}
+            </div>`;
+        } else {
+            chatHtml += `
+            <div class="self-start bg-zinc-800 p-3 rounded-xl rounded-tl-none max-w-[85%] text-xs text-white shadow-md border border-white/5 whitespace-pre-wrap">
+                <span class="text-[9px] text-zinc-400 block mb-1">${msg.senderEmail || (msg.senderId === 'admin' ? 'Admin' : 'User')} • ${msg.date}</span>
+                ${msg.message}
+            </div>`;
+        }
+    });
+    
+    chatHtml += `</div>`;
+    
+    // Append chat interface instead of just overriding text
+    document.getElementById('userReplyContext').innerHTML += chatHtml;
+    
+    setTimeout(() => {
+        const box = document.getElementById('chatHistoryBox');
+        if(box) box.scrollTop = box.scrollHeight;
+    }, 50);
+
     document.getElementById('userReplyMessage').value = '';
-    closeModal('notificationsModal');
-    openModal('userReplyModal');
+    if(typeof window.closeModal === 'function') window.closeModal('notificationsModal');
+    if(typeof window.openModal === 'function') window.openModal('userReplyModal');
 };
 
 window.sendUserReply = async function() {
     const msg = document.getElementById('userReplyMessage').value.trim();
-    if (!msg) return showMessage("Type a message first.");
+    const threadId = document.getElementById('userReplyNotifId').value;
     
-    // Create a notification for the ADMIN INBOX
-    await window.DatabaseAPI.add('notifications', {
+    if (!msg) {
+        if(typeof window.showMessage === 'function') window.showMessage("Type a message first.");
+        return;
+    }
+
+    const notifs = await window.DatabaseAPI.get('notifications');
+    const threadMsgs = notifs.filter(n => n.threadId === threadId || n.id === threadId);
+    const lastMsg = threadMsgs[threadMsgs.length - 1];
+
+    // Determine the receiver based on the last message in the thread
+    let receiverId = 'admin'; // Default fallback
+    if (window.isAdmin && lastMsg) {
+        receiverId = lastMsg.senderId === 'admin' ? lastMsg.userId : lastMsg.senderId;
+    } else if (!window.isAdmin) {
+        receiverId = 'admin'; 
+    }
+
+    const newMsg = {
         id: "notif_" + Date.now().toString(),
-        userId: "admin", 
-        type: "user_reply",
-        title: `Reply from ${window.userProfile.name}`,
+        threadId: threadId,
+        userId: receiverId, // This places it in the receiver's inbox
+        senderId: window.isAdmin ? 'admin' : window.userProfile.accountId,
+        senderEmail: window.isAdmin ? 'admin@autumnfest.in' : window.userProfile.email,
+        type: "chat_message",
+        title: window.isAdmin ? `Admin Support` : `Reply from ${window.userProfile.name}`,
         message: msg,
         date: new Date().toLocaleString(),
-        isRead: "false",
-        senderEmail: window.userProfile.email
-    });
+        isRead: "false"
+    };
+
+    await window.DatabaseAPI.add('notifications', newMsg);
     
-    closeModal('userReplyModal');
-    showMessage("Reply sent successfully to the Events Team!");
+    // Live UI Update: Append directly to the active chat box without reloading modal
+    const chatBox = document.getElementById('chatHistoryBox');
+    if (chatBox) {
+        chatBox.innerHTML += `
+            <div class="self-end bg-rose-600/80 p-3 rounded-xl rounded-tr-none max-w-[85%] text-xs text-white shadow-md mt-2 whitespace-pre-wrap">
+                <span class="text-[9px] text-rose-200 block mb-1 text-right">You • ${newMsg.date}</span>
+                ${newMsg.message}
+            </div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+        document.getElementById('userReplyMessage').value = '';
+    } else {
+        if(typeof window.closeModal === 'function') window.closeModal('userReplyModal');
+        if(typeof window.showMessage === 'function') window.showMessage("Message sent!");
+    }
 };
 
-// ==========================================
-// 8. MODALS CONTROLLERS
-// ==========================================
+window.openAdminReplyModal = function(collection, id, email, name = '') {
+    window.replyTargetCollection = collection;
+    window.replyTargetId = id;
+    window.replyTargetEmail = email;
+    
+    const targetEl = document.getElementById('adminReplyTargetEmail');
+    if (targetEl) targetEl.innerText = email;
+    
+    const subjEl = document.getElementById('adminReplySubject');
+    if (subjEl) subjEl.value = `Re: Your ${collection === 'sponsors' ? 'Sponsorship ' : ''}Inquiry`;
+    
+    const attachLinks = document.getElementById('adminReplyLinks');
+    if(attachLinks) attachLinks.value = '';
+    
+    const msgBox = document.getElementById('adminReplyMessage');
+    if(msgBox) {
+        msgBox.innerHTML = name && name !== "Pending User" ? `Dear <b>${name}</b>,<br><br>` : '';
+    }
+    
+    if(typeof window.openModal === 'function') window.openModal('adminReplyModal');
+};
+
+// Helper function to extract plain text from WYSIWYG editor
+const parseHTMLtoText = (html) => {
+    return html.replace(/<br\s*\/?>/gi, '\n')
+               .replace(/<\/p>/gi, '\n')
+               .replace(/<\/div>/gi, '\n')
+               .replace(/<[^>]*>?/gm, '') 
+               .replace(/&nbsp;/gi, ' ')
+               .trim();
+};
+
+window.executeAdminReply = async function() {
+    const msgBox = document.getElementById('adminReplyMessage');
+    const textMsg = msgBox ? msgBox.innerHTML.trim() : "";
+    if(!textMsg) return window.showMessage("Please type a message before sending.");
+    
+    const subject = document.getElementById('adminReplySubject')?.value || "Reply from Autumn Fest";
+    const rawText = msgBox ? parseHTMLtoText(msgBox.innerHTML) : "";
+    
+    // Dispatch Email
+    try {
+        await fetch(`${window.BASE_URL}/send-mail`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subject: subject,
+                body: textMsg,
+                recipients: [{ email: window.replyTargetEmail, name: "Participant" }]
+            })
+        });
+    } catch (e) {
+        console.error("Mail Dispatch Failed:", e);
+    }
+    
+    // Determine the Thread ID for tracking
+    const threadId = window.replyTargetId || ("thread_" + Date.now().toString());
+
+    // Log Admin History in the Query/Sponsor Tracker
+    let statusText = window.replyTargetCollection === 'queries' ? 'Replied' : 'Reviewed & Replied';
+    if (window.replyTargetCollection !== 'users' && window.replyTargetCollection) {
+        const allItems = await window.DatabaseAPI.get(window.replyTargetCollection);
+        const item = allItems.find(x => x.id === window.replyTargetId);
+        
+        const historyEntry = `[Admin Reply - ${new Date().toLocaleString()}]\n${rawText}\n\n`;
+        const newReplyText = (item && item.replyText ? item.replyText : '') + historyEntry;
+        
+        await window.DatabaseAPI.update(window.replyTargetCollection, window.replyTargetId, { status: statusText, replyText: newReplyText });
+    }
+    
+    // Push In-App Notification directly to the User (Grouped to threadId)
+    try {
+        const allUsers = await window.DatabaseAPI.get('users');
+        const targetUser = allUsers.find(u => u.email && u.email.toLowerCase() === window.replyTargetEmail.toLowerCase());
+        if (targetUser) {
+            await window.DatabaseAPI.add('notifications', {
+                id: "notif_" + Date.now().toString(),
+                threadId: threadId,
+                userId: targetUser.id,
+                senderId: 'admin',
+                senderEmail: window.userProfile.email,
+                type: 'chat_message',
+                title: subject,
+                message: rawText, // Pure text instead of HTML
+                date: new Date().toLocaleString(),
+                isRead: 'false'
+            });
+        }
+    } catch(e) {}
+    
+    if(typeof window.closeModal === 'function') window.closeModal('adminReplyModal');
+    if(typeof window.showMessage === 'function') window.showMessage(`Email and In-App notification sent to ${window.replyTargetEmail}!`);
+    if(typeof window.renderAdminDashboard === 'function') window.renderAdminDashboard(); 
+};
+
+// Update how Admin Action history is rendered in Query/Sponsor modals to preserve newlines
+window.openQueryDetails = async function(id) {
+    const queries = await window.DatabaseAPI.get('queries');
+    const q = queries.find(x => x.id === id);
+    if (!q) return;
+
+    document.getElementById('adminDetailsTitle').innerText = "Query Details";
+    document.getElementById('adminDetailsContent').innerHTML = `
+        <div class="space-y-4 text-sm">
+            <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Name</span><p class="text-white font-medium">${q.name}</p></div>
+            <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Email</span><p class="text-white font-medium select-all">${q.email}</p></div>
+            <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Date</span><p class="text-white font-medium">${q.date}</p></div>
+            <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Message</span>
+                 <div class="bg-black/40 p-4 rounded-xl border border-white/5 text-zinc-300 whitespace-pre-wrap">${q.message}</div>
+            </div>
+            ${q.replyText ? `
+            <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Admin Action History</span>
+                 <div class="bg-blue-900/10 p-4 rounded-xl border border-blue-500/20 text-blue-300 whitespace-pre-wrap text-[11px] font-mono leading-relaxed">${q.replyText}</div>
+            </div>` : ''}
+        </div>
+    `;
+    document.getElementById('adminDetailsFooter').innerHTML = `
+        <button onclick="window.closeModal('adminDetailsModal')" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-sm font-bold transition">Close</button>
+        <button onclick="window.closeModal('adminDetailsModal'); window.openAdminReplyModal('queries', '${q.id}', '${q.email}', '${q.name.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold transition shadow flex items-center gap-2"><i data-lucide="reply" class="w-4 h-4"></i> Reply via Email</button>
+    `;
+    if(typeof window.openModal === 'function') window.openModal('adminDetailsModal');
+    if(typeof window.renderIcons === 'function') window.renderIcons();
+};
+
+window.openSponsorDetails = async function(id) {
+    const sponsors = await window.DatabaseAPI.get('sponsors');
+    const s = sponsors.find(x => x.id === id);
+    if (!s) return;
+
+    let linkHtml = s.link ? `
+        <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Attached Document</span>
+             <div class="bg-black/40 p-4 rounded-xl border border-white/5 break-all">
+                <a href="${s.link}" target="_blank" class="text-blue-400 hover:underline flex items-center gap-2"><i data-lucide="external-link" class="w-4 h-4"></i> View Proposal Document</a>
+             </div>
+        </div>` : '';
+
+    let msgHtml = s.message ? `
+        <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Message</span>
+             <div class="bg-black/40 p-4 rounded-xl border border-white/5 break-words text-white whitespace-pre-wrap">
+                ${s.message}
+             </div>
+        </div>` : '';
+
+    document.getElementById('adminDetailsTitle').innerText = "Sponsorship Proposal";
+    document.getElementById('adminDetailsContent').innerHTML = `
+        <div class="space-y-4 text-sm">
+            <div class="grid grid-cols-2 gap-4">
+                <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Company</span><p class="text-white font-medium">${s.company}</p></div>
+                <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Contact Person</span><p class="text-white font-medium">${s.contact}</p></div>
+                <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Email</span><p class="text-white font-medium select-all">${s.email}</p></div>
+                <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Phone</span><p class="text-white font-medium select-all">${s.phone}</p></div>
+            </div>
+            ${msgHtml}
+            ${linkHtml}
+            ${s.replyText ? `
+            <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Admin Action History</span>
+                 <div class="bg-blue-900/10 p-4 rounded-xl border border-blue-500/20 text-blue-300 whitespace-pre-wrap text-[11px] font-mono leading-relaxed">${s.replyText}</div>
+            </div>` : ''}
+        </div>
+    `;
+    document.getElementById('adminDetailsFooter').innerHTML = `
+        <button onclick="window.closeModal('adminDetailsModal')" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-sm font-bold transition">Close</button>
+        <button onclick="window.closeModal('adminDetailsModal'); window.openAdminReplyModal('sponsors', '${s.id}', '${s.email}', '${s.contact.replace(/'/g, "\\'")}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold transition shadow flex items-center gap-2"><i data-lucide="reply" class="w-4 h-4"></i> Reply to Proposal</button>
+    `;
+    if(typeof window.openModal === 'function') window.openModal('adminDetailsModal');
+    if(typeof window.renderIcons === 'function') window.renderIcons();
+};
+
 window.openModal = function(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) {
@@ -1140,9 +1467,6 @@ window.openEventModal = function(catKey, evId) {
   }
 };
 
-// ==========================================
-// 9. SHARED REGISTRATION & PAYMENT LOGIC
-// ==========================================
 window.openRegisterModal = function() {
   if (window.festStatus !== 'active' || window.currentModalEvent.status === 'closed') {
     window.showMessage("Registrations are closed for this event.");
@@ -1334,7 +1658,6 @@ window.updateMemberCount = function() {
   if (addBtn) addBtn.style.display = window.teamMemberCount >= window.currentRegMax ? 'none' : 'flex';
 };
 
-// 🔥 NEW: Send Team Invite Notification directly to user's Inbox
 window.sendTeamInvite = async function(inputId) {
     const inputEl = document.getElementById(inputId);
     if (!inputEl || !inputEl.value) {
@@ -1363,12 +1686,11 @@ window.sendTeamInvite = async function(inputId) {
         relatedId: reg.teamCode
     });
 
-    inputEl.value = targetUser.id; // Resolve to formal ID
+    inputEl.value = targetUser.id;
     window.saveTeamMembers();
     showMessage(`Invite sent to ${targetUser.name}! They can accept it in their notifications.`);
 };
 
-// 🔥 NEW: Accept Team Invite and Bind User to Team securely
 window.acceptTeamInvite = async function(teamCode, notifId) {
     const allRegs = await window.DatabaseAPI.get('registrations');
     const targetReg = allRegs.find(r => r.teamCode === teamCode);
@@ -1390,9 +1712,7 @@ window.acceptTeamInvite = async function(teamCode, notifId) {
         return;
     }
 
-    // Attach user securely
     if (!targetReg.members.includes(window.userProfile.accountId) && targetReg.leader !== window.userProfile.accountId) {
-        // Find existing 'Pending' slot and replace it, or push new
         let pendingIdx = targetReg.members.findIndex(m => m === 'Pending');
         if(pendingIdx > -1) {
             targetReg.members[pendingIdx] = window.userProfile.accountId;
@@ -1405,7 +1725,6 @@ window.acceptTeamInvite = async function(teamCode, notifId) {
     await window.DatabaseAPI.delete('notifications', notifId);
     showMessage(`Successfully joined ${targetReg.teamName}!`);
     
-    // Refresh user profile state globally
     const users = await window.DatabaseAPI.get('users');
     await window.populateUserProfile(users.find(u => u.id === window.userProfile.accountId));
     window.saveCache();
@@ -1563,9 +1882,6 @@ window.processPayment = function() {
   });
 };
 
-// ==========================================
-// 10. SPONSOR LOGIC (Integrated Message Box)
-// ==========================================
 window.toggleSponsorInput = function(type) {
     window.sponsorUploadType = type;
     const fileBtn = document.getElementById('btn-spon-file');

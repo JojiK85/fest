@@ -45,13 +45,18 @@
                 <a href="events.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-events">Events</a>
                 <a href="accommodation.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-accommodation">Stay</a>
                 <a href="gallery.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-gallery">Gallery</a>
-                <a href="sponsors.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-sponsors">Sponsors</a>
+                <a href="sponsors.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1  border-b-2 border-rose-500" id="nav-sponsors">Sponsors</a>
                 <a href="contact.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-contact">Contact Us</a>
                 <a href="profile.html" class="nav-link text-sm font-bold tracking-wider uppercase text-zinc-400 hover:text-white pb-1" id="nav-profile">Profile</a>
                 <a href="admin.html" class="nav-link text-sm font-bold tracking-wider uppercase text-rose-500 hover:text-rose-400 pb-1 hidden" id="nav-admin">Admin</a>
             </div>
 
             <div class="flex items-center gap-4 z-20">
+                 <!-- Pre-rendered Notification Bell for Instant Load -->
+                <button id="nav-notif-btn" onclick="window.openNotifications()" class="hidden sm:flex relative w-10 h-10 items-center justify-center bg-[#f0f4f8] dark:bg-white/10 rounded-full hover:bg-slate-200 dark:hover:bg-white/20 transition-all group mr-2">
+                    <i data-lucide="bell" class="w-5 h-5 text-slate-500 dark:text-zinc-300 group-hover:text-slate-700 dark:group-hover:text-white transition-colors"></i>
+                    <span id="desktop-notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center shadow border-2 border-white dark:border-zinc-900 hidden">0</span>
+                </button>
                 <a href="index.html" id="nav-auth-btn" class="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 hover:bg-white text-white hover:text-black font-bold text-sm transition border border-white/10">
                     <i data-lucide="log-in" class="w-4 h-4"></i> Sign In
                 </a>
@@ -69,10 +74,14 @@
                 <a href="events.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Events</a>
                 <a href="accommodation.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Stay</a>
                 <a href="gallery.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Gallery</a>
-                <a href="sponsors.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Sponsors</a>
+                <a href="sponsors.html" class="text-lg font-bold tracking-wider uppercase text-rose-500 hover:text-rose-400">Sponsors</a>
                 <a href="contact.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Contact</a>
                 <a href="profile.html" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white">Profile</a>
                 <a href="admin.html" class="text-lg font-bold tracking-wider uppercase text-rose-500 hover:text-rose-400 hidden" id="mobile-nav-admin">Admin</a>
+                <!-- Pre-rendered Mobile Notification Link for Instant Load -->
+                <a href="#" onclick="event.preventDefault(); window.openNotifications(); window.toggleMobileMenu();" class="text-lg font-bold tracking-wider uppercase text-zinc-300 hover:text-white flex items-center gap-2" id="mobile-nav-notif">
+                    Notifications <span id="mobile-notif-badge" class="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded-full hidden shadow border border-transparent">0</span>
+                </a>
             </div>
 
             <a href="index.html" id="mobile-auth-btn" class="w-11/12 max-w-xs mx-auto py-3 rounded-xl bg-rose-600 text-white font-bold tracking-wider uppercase mt-2 hover:bg-rose-500 transition-colors shadow-lg flex items-center justify-center gap-2">

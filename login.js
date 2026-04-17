@@ -2,6 +2,25 @@
 // LOGIN.HTML SPECIFIC LOGIC (Auth & OTP)
 // ==========================================
 
+// 🔥 ULTIMATE AUTOFILL BLOCKER: Sets fields to readonly on load, removes on click
+document.addEventListener("DOMContentLoaded", () => {
+    const killAutofill = (el) => {
+        if (!el) return;
+        el.value = '';
+        el.setAttribute('readonly', 'true');
+        el.setAttribute('autocomplete', 'new-password');
+        
+        // Unlock field when user interacts with it
+        el.addEventListener('focus', () => el.removeAttribute('readonly'));
+        el.addEventListener('click', () => el.removeAttribute('readonly'));
+        setTimeout(() => el.removeAttribute('readonly'), 800); // Failsafe unlock
+    };
+
+    killAutofill(document.getElementById('auth-email'));
+    killAutofill(document.getElementById('auth-password'));
+    killAutofill(document.getElementById('auth-name'));
+});
+
 function toggleAuthMode(isLogin) {
     isSignupMode = !isLogin;
     const btnLogin = document.getElementById('tab-login');
@@ -9,10 +28,11 @@ function toggleAuthMode(isLogin) {
     const fields = document.getElementById('signup-fields');
     
     const formBox = document.getElementById('auth-email')?.parentElement;
-    // Inject password field if missing
+    
+    // Inject password field if missing (with strict autofill blockers)
     if (formBox && !document.getElementById('auth-password')) {
         document.getElementById('auth-email').insertAdjacentHTML('afterend', `
-            <input type="password" id="auth-password" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500 transition shadow-inner mt-4" placeholder="Password" required>
+            <input type="password" id="auth-password" readonly onfocus="this.removeAttribute('readonly')" onclick="this.removeAttribute('readonly')" autocomplete="new-password" data-lpignore="true" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500 transition shadow-inner mt-4" placeholder="Password" required>
         `);
     }
 
@@ -43,7 +63,7 @@ window.handleLogin = async function(event) {
     let passEl = document.getElementById('auth-password');
     
     if (emailEl && !passEl) {
-        emailEl.insertAdjacentHTML('afterend', `<input type="password" id="auth-password" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500 transition shadow-inner mt-4" placeholder="Password" required>`);
+        emailEl.insertAdjacentHTML('afterend', `<input type="password" id="auth-password" readonly onfocus="this.removeAttribute('readonly')" autocomplete="new-password" data-lpignore="true" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500 transition shadow-inner mt-4" placeholder="Password" required>`);
         return showMessage("Please enter your password in the new field.");
     }
     
@@ -69,11 +89,10 @@ window.handleLogin = async function(event) {
 
     let assignedRole = ROLES.USER;
     
-    // Demo accounts mapping
-    if (email === 'volunteer@autumnfest.in') assignedRole = ROLES.ADMIN;
-    else if (email === 'manager@autumnfest.in') assignedRole = ROLES.SUPERADMIN;
-    else if (email === 'tech@autumnfest.in') assignedRole = ROLES.SUPERACCOUNT;
-    else if (email === 'root@autumnfest.in') assignedRole = ROLES.PRIMARY;
+    // Automatically assign the Primary Superaccount role to this specific email
+    if (email === 'kandulajoji@gmail.com') {
+        assignedRole = ROLES.PRIMARY;
+    }
 
     if (isSignupMode) {
         if (existingUser && existingUser.name !== "Pending User") {
@@ -86,6 +105,9 @@ window.handleLogin = async function(event) {
         
         let newId = existingUser ? existingUser.id : "AUT-26-" + Math.floor(1000 + Math.random() * 9000);
         assignedRole = existingUser && existingUser.role > assignedRole ? existingUser.role : assignedRole;
+        
+        // Enforce superaccount on signup for the specific email
+        if (email === 'kandulajoji@gmail.com') assignedRole = ROLES.PRIMARY;
         
         // Save pending data for OTP verification
         window.pendingSignupData = { 
@@ -116,11 +138,20 @@ window.handleLogin = async function(event) {
     } else {
         // Login Mode
         if (!existingUser) return showMessage("User not found! Try signing up.");
-        if (existingUser.password !== password && password !== 'password123') return showMessage("Incorrect password!");
+        
+        // Strict password checking
+        if (existingUser.password !== password) return showMessage("Incorrect password!");
+        
         if (existingUser.name === "Pending User") return showMessage("Your account was pre-assigned. Please Sign Up to complete profile setup.");
         
         userProfile.accountId = existingUser.id;
-        currentRole = existingUser.role;
+        
+        // Automatically upgrade to PRIMARY if logging in and they don't have the role yet
+        currentRole = (email === 'kandulajoji@gmail.com') ? ROLES.PRIMARY : existingUser.role;
+        if (email === 'kandulajoji@gmail.com' && existingUser.role !== ROLES.PRIMARY) {
+            window.DatabaseAPI.update('users', existingUser.id, { role: ROLES.PRIMARY });
+        }
+        
         isAdmin = currentRole >= ROLES.ADMIN;
         isLoggedIn = true;
         

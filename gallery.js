@@ -5,7 +5,7 @@
 document.addEventListener("DOMContentLoaded", () => {
     const grid = document.getElementById('gallery-grid');
     if (grid) {
-        // 🔥 FIX 1: Instantly wipe the 3 hardcoded HTML images and show a cool loading spinner
+        // Instantly wipe HTML images and show a cool loading spinner
         grid.innerHTML = `
             <div class="col-span-full py-12 flex flex-col items-center justify-center w-full">
                 <div class="w-10 h-10 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(225,29,72,0.5)]"></div>
@@ -26,8 +26,18 @@ document.addEventListener("DOMContentLoaded", () => {
             searchInput.addEventListener('click', () => searchInput.removeAttribute('readonly'));
         }
         
-        // Short timeout to ensure shared.js has loaded DatabaseAPI before rendering
-        setTimeout(() => window.renderGallery(), 300);
+        // FIX: Ultra-fast polling instead of a hard 300ms delay. Renders instantly from cache!
+        const checkReady = setInterval(() => {
+            if (window.DatabaseAPI && window.DatabaseAPI._data && window.DatabaseAPI._data.gallery) {
+                clearInterval(checkReady);
+                window.renderGallery();
+            }
+        }, 30);
+        
+        // Update automatically when live data arrives from the server
+        window.addEventListener('db-updated', () => {
+            window.renderGallery();
+        });
     }
 });
 
@@ -45,7 +55,7 @@ window.getDirectImageUrls = function(url) {
     return { lh3: url, uc: url, download: url };
 };
 
-// 🔥 FIX 2: Updated Lightbox to accept BOTH lh3 and uc URLs to guarantee it loads
+// Updated Lightbox to accept BOTH lh3 and uc URLs to guarantee it loads
 window.openLightbox = function(lh3Url, ucUrl, caption, downloadUrl) {
     let lightbox = document.getElementById('gallery-lightbox');
     if (!lightbox) {
@@ -113,10 +123,10 @@ window.renderGallery = async function() {
             displayName = displayName.split('@')[0];
         }
 
-        // Parse likedBy Array securely to check if current user liked it
+        // Track likes using the strict, unique accountId instead of the user's name
         let likedByArray = [];
         try { likedByArray = typeof img.likedBy === 'string' ? JSON.parse(img.likedBy) : (img.likedBy || []); } catch(e){}
-        const hasLiked = window.isLoggedIn && likedByArray.includes(window.userProfile.name);
+        const hasLiked = window.isLoggedIn && likedByArray.includes(window.userProfile.accountId);
 
         return `
         <div class="gallery-item group relative rounded-2xl overflow-hidden bg-zinc-900 border border-white/5 hover:border-white/20 transition-all shadow-xl aspect-square cursor-pointer w-full h-full" data-tags="${img.tags || ''}" data-id="${img.id}" onclick="window.handleGalleryTap(this, event)">
@@ -131,13 +141,12 @@ window.renderGallery = async function() {
             </div>
             
             <!-- Expand Pop-up Button -->
-            <!-- We now pass BOTH urls.lh3 and urls.uc to the openLightbox function -->
             <button onclick="event.stopPropagation(); window.openLightbox('${urls.lh3}', '${urls.uc}', '${img.caption.replace(/'/g, "\\'")}', '${urls.download}')" 
                 class="absolute top-2 left-2 sm:top-3 sm:left-3 w-8 h-8 rounded-full bg-black/50 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 z-20 hover:bg-white/20 hover:scale-110 shadow-lg">
                 <i data-lucide="expand" class="w-4 h-4"></i>
             </button>
 
-            <!-- 🔥 Clean, Unified Pill-Shaped Likes UI (No Popups, Persistent Likes) -->
+            <!-- Clean, Unified Pill-Shaped Likes UI (Persistent via Account ID) -->
             <button class="like-btn-container absolute top-2 right-2 sm:top-3 sm:right-3 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-xl border border-white/20 flex items-center justify-center gap-1.5 text-white hover:bg-rose-500/30 hover:border-rose-500/60 transition-all z-20 shadow-lg" onclick="window.toggleLike(this, false, event)">
                 <i data-lucide="heart" class="w-4 h-4 ${hasLiked ? 'fill-rose-500 text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]' : 'text-white/80'}"></i>
                 <span class="text-xs font-bold like-count tracking-wider">${likedByArray.length}</span>
@@ -213,21 +222,21 @@ window.toggleLike = async function(btn, fromDoubleTap = false, event = null) {
     let likedBy = [];
     try { likedBy = typeof imgObj.likedBy === 'string' ? JSON.parse(imgObj.likedBy) : (imgObj.likedBy || []); } catch(e){}
 
-    const userName = window.userProfile.name;
-    const isCurrentlyLikedByMe = likedBy.includes(userName);
+    const userId = window.userProfile.accountId;
+    const isCurrentlyLikedByMe = likedBy.includes(userId);
 
     if (fromDoubleTap && isCurrentlyLikedByMe) return;
 
     if (isCurrentlyLikedByMe) {
         icon.classList.remove('fill-rose-500', 'text-rose-500', 'drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]');
         icon.classList.add('text-white/80');
-        likedBy = likedBy.filter(n => n !== userName);
+        likedBy = likedBy.filter(id => id !== userId);
     } else {
         icon.classList.remove('text-white/80');
         icon.classList.add('fill-rose-500', 'text-rose-500', 'drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]');
         icon.style.transform = 'scale(1.5)';
         setTimeout(() => icon.style.transform = 'scale(1)', 200);
-        likedBy.push(userName);
+        likedBy.push(userId);
     }
     
     countSpan.innerText = likedBy.length;
