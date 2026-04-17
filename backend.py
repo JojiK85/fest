@@ -78,6 +78,10 @@ def get_db_connection():
 # ==========================================
 # STRICT BCNF COLUMN DEFINITIONS & MAPPINGS
 # ==========================================
+# Notice: No arrays (JSON lists) are allowed in strict SQL tables here. 
+# We use Junction Tables (e.g., team_members) to handle repeating groups.
+
+# Maps the Frontend API endpoint name to the actual SQL Table name
 TABLE_MAPPING = {
     'users': 'users',
     'events': 'events',
@@ -90,11 +94,11 @@ TABLE_MAPPING = {
     'winners': 'winners',
     'gallery': 'gallery',
     'accommodations': 'accommodations',
-    'registrations': 'teams', 
+    'registrations': 'teams', # The Frontend calls them 'registrations', the DB calls them 'teams'
     'settings': 'settings'
 }
 
-# UPDATED: Accommodations now uses day1, day2, day3 (yes/no) instead of duration string
+# The physical columns stored in the primary SQL tables
 TABLE_COLUMNS = {
     'users': ['id', 'name', 'email', 'password', 'role', 'phone', 'gender', 'college', 'photo'],
     'events': ['id', 'category', 'status', 'name', 'fee', 'prize', 'team', 'date', 'venue', 'banner', 'desc'],
@@ -115,7 +119,13 @@ def init_db():
     if not parsed_uri: return
     conn = get_db_connection()
     with conn.cursor() as cursor:
+        # ---------------------------------------------------------
+        # PURE MYSQL COMMANDS FOR TABLE CREATION (Dependency Order)
+        # Functional Dependencies are documented inline
+        # ---------------------------------------------------------
         
+        # FDs: id -> name, email, password, role, phone, gender, college, photo
+        # Candidate Keys: id, email
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id VARCHAR(100) PRIMARY KEY, 
@@ -130,6 +140,7 @@ def init_db():
             )
         """)
 
+        # FDs: id -> category, status, name, fee, prize, team, date, venue, banner, desc
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS events (
                 id VARCHAR(100) PRIMARY KEY, 
@@ -250,6 +261,7 @@ def init_db():
             )
         """)
 
+        # BCNF COMPLIANT RELATION: GALLERY LIKES (Resolves Multi-Valued Attributes)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS gallery_likes (
                 gallery_id VARCHAR(100),
@@ -260,7 +272,6 @@ def init_db():
             )
         """)
 
-        # UPDATED ACCOMMODATIONS (Replaces 'duration' with 'day1', 'day2', 'day3' for BCNF compliance)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS accommodations (
                 id VARCHAR(100) PRIMARY KEY, 
@@ -275,17 +286,8 @@ def init_db():
                 FOREIGN KEY (payId) REFERENCES payments(id) ON DELETE SET NULL
             )
         """)
-        
-        # AUTO MIGRATION: If the old 'duration' column exists, gracefully drop it and add day1, day2, day3
-        try:
-            cursor.execute("SHOW COLUMNS FROM accommodations LIKE 'day1'")
-            if not cursor.fetchone():
-                cursor.execute("ALTER TABLE accommodations ADD COLUMN day1 VARCHAR(10) DEFAULT 'no', ADD COLUMN day2 VARCHAR(10) DEFAULT 'no', ADD COLUMN day3 VARCHAR(10) DEFAULT 'no'")
-                try: cursor.execute("ALTER TABLE accommodations DROP COLUMN duration")
-                except: pass
-        except Exception as e:
-            print("Migration ignored/failed", e)
 
+        # BCNF COMPLIANT RELATION: ACCOMMODATION REQUESTS (Resolves Multi-Valued Attributes)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS accommodation_requests (
                 accommodation_id VARCHAR(100),
@@ -296,6 +298,9 @@ def init_db():
             )
         """)
 
+        # FDs: id -> eventId, teamName, teamCode, leader, payment, payId
+        # teamCode -> id (teamCode is UNIQUE, making it a Candidate Key)
+        # Because every determinant is a candidate key, this table is natively in BCNF!
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS teams (
                 id VARCHAR(100) PRIMARY KEY, 
@@ -311,6 +316,8 @@ def init_db():
             )
         """)
 
+        # BCNF COMPLIANT RELATION: TEAM MEMBERS
+        # Storing names here would violate BCNF (transitive dependency). We solely store user_id.
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS team_members (
                 team_id VARCHAR(100),
@@ -361,6 +368,7 @@ def get_gspread_client():
     return _gspread_client
 
 def sync_to_google_sheets(api_collection_name):
+    # Map the API collection name to the physical SQL table name
     db_table_name = TABLE_MAPPING.get(api_collection_name)
     if not db_table_name: return
     
@@ -391,6 +399,7 @@ def sync_to_google_sheets(api_collection_name):
             return id_to_name.get(raw_id, raw_id)
 
         with conn.cursor() as cursor:
+            # The Sync dynamically pulls from the BCNF tables and aggregates them for the sheet viewer
             if api_collection_name == 'gallery':
                 cursor.execute("""
                     SELECT g.*, 
@@ -471,14 +480,19 @@ def sync_to_google_sheets(api_collection_name):
     except Exception as e:
         print(f"Sync skipped/failed: {str(e)}")
 
+# 🔥 Background Thread to catch Manual Database Interventions (via Raw SQL)
 def periodic_sync_to_sheets():
+    """
+    Runs continuously in the background. Every 5 minutes it forces a
+    sync to Google Sheets to ensure raw SQL modifications are captured.
+    """
     while True:
-        time.sleep(300) 
+        time.sleep(300) # Wait 5 minutes
         print("[Auto-Sync] Running periodic background sync to Google Sheets...")
         try:
             for api_collection in TABLE_MAPPING.keys():
                 sync_to_google_sheets(api_collection)
-                time.sleep(2) 
+                time.sleep(2) # Prevent Sheets API rate limit (60 requests/minute)
             print("[Auto-Sync] Periodic sync completed.")
         except Exception as e:
             print(f"[Auto-Sync] Error during background sync: {e}")
@@ -539,6 +553,7 @@ def get_collection(collection):
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
+            # Reconstruct JSON arrays dynamically from BCNF Tables so Frontend stays intact
             if collection == 'gallery':
                 cursor.execute("""
                     SELECT g.*, 
@@ -594,6 +609,7 @@ def add_document(collection):
 
     doc_id = data.get('id')
     
+    # Isolate relational mapping data so it doesn't try inserting arrays into strings
     liked_by = data.pop('likedBy', None)
     members = data.pop('members', None)
     requested = data.pop('requested', None)
@@ -616,6 +632,7 @@ def add_document(collection):
 
             cursor.execute(sql, tuple(values))
             
+            # Execute secondary BCNF Relational Table Population
             if collection == 'gallery' and liked_by is not None:
                 if isinstance(liked_by, str): 
                     try: liked_by = json.loads(liked_by)
@@ -653,6 +670,7 @@ def update_document(collection, doc_id):
 
     if not updates: return jsonify({"success": True}), 200
 
+    # Isolate relational mapping data
     liked_by = updates.pop('likedBy', None)
     members = updates.pop('members', None)
     requested = updates.pop('requested', None)
@@ -672,6 +690,7 @@ def update_document(collection, doc_id):
                 sql = f"UPDATE {db_table_name} SET {set_clause} WHERE id = %s"
                 cursor.execute(sql, tuple(values))
 
+            # Sync secondary BCNF mappings dynamically
             if collection == 'gallery' and liked_by is not None:
                 cursor.execute("DELETE FROM gallery_likes WHERE gallery_id = %s", (doc_id,))
                 if isinstance(liked_by, str): 
@@ -710,6 +729,7 @@ def delete_document(collection, doc_id):
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
+            # Using Pure Explicit SQL DELETE commands (Foreign Keys resolve dependents gracefully!)
             sql = f"DELETE FROM {db_table_name} WHERE id = %s"
             if collection == 'otps':
                 sql = f"DELETE FROM {db_table_name} WHERE email = %s"
@@ -724,6 +744,7 @@ def delete_document(collection, doc_id):
 
     threading.Thread(target=sync_to_google_sheets, args=(collection,)).start()
     return jsonify({"success": True, "message": "Document deleted"}), 200
+
 
 # ==========================================
 # 5. MAILING & UPLOAD ENDPOINTS
@@ -1037,6 +1058,7 @@ def send_bulk_mail():
         return jsonify({"error": f"SMTP Error: {str(e)}"}), 500
 
 if __name__ == '__main__':
+    # Start the daemon thread to watch for raw SQL changes and update Sheets continuously
     sync_thread = threading.Thread(target=periodic_sync_to_sheets, daemon=True)
     sync_thread.start()
     
