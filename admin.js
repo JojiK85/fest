@@ -942,13 +942,19 @@ window.onScanSuccess = function(decodedText) {
     
     document.getElementById('scan-input').value = extractedId;
     window.stopCameraScan();
-    window.simulateScan();
+    window.simulateScan(extractedId);
 };
 
-window.simulateScan = async function() {
-    const input = document.getElementById('scan-input').value.trim();
-    const type = document.getElementById('scan-type').options[document.getElementById('scan-type').selectedIndex].text;
+window.simulateScan = async function(presetInput = null) {
+    const inputStr = typeof presetInput === 'string' ? presetInput : document.getElementById('scan-input').value.trim();
+    const input = inputStr;
+    const typeSelect = document.getElementById('scan-type');
+    const type = typeSelect.value; // 'gate', 'event', 'accom'
     const resDiv = document.getElementById('scan-result');
+
+    if (!presetInput && document.getElementById('scan-input')) {
+        document.getElementById('scan-input').value = input;
+    }
 
     resDiv.classList.remove('hidden');
     if (!input) {
@@ -957,87 +963,253 @@ window.simulateScan = async function() {
         return;
     }
 
-    await window.DatabaseAPI.add('logs', { id: input, type: type, timestamp: new Date().toLocaleString(), by: window.userProfile.email });
-    
-    if (window.currentRole >= window.ROLES.ADMIN) {
-        await window.renderAnalytics(); 
-    }
+    resDiv.className = "mt-4 sm:mt-6 text-left p-4 rounded-xl border bg-zinc-900/80 border-zinc-700 w-full animate-[fadeInSlide_0.2s_ease-out]";
+    resDiv.innerHTML = `<div class="flex justify-center"><div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div></div>`;
+
+    const users = await window.DatabaseAPI.get('users');
+    const regs = await window.DatabaseAPI.get('registrations');
+    const accoms = await window.DatabaseAPI.get('accommodations');
+    const logs = await window.DatabaseAPI.get('logs');
+    const allEvents = Object.values(window.EVENTS_DATA || {}).flat();
+
+    const hasFestAccess = (uid) => {
+        return regs.some(r => r.leader === uid || (r.members && r.members.includes(uid))) || accoms.some(a => a.id === uid);
+    };
+
+    const getUserName = (uid) => {
+        const u = users.find(x => x.id === uid);
+        return u ? u.name : uid;
+    };
 
     let resultHtml = "";
 
-    if (input.startsWith('AUT-TEAM-')) {
-        resultHtml = `
-            <div class="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4 w-full">
-                <i data-lucide="users" class="w-5 h-5 sm:w-6 sm:h-6 text-cyan-500 mt-0.5 sm:mt-1 shrink-0"></i>
-                <div class="flex-grow min-w-0">
-                    <h4 class="text-white font-bold text-xs sm:text-sm truncate">Valid Team Entry Found</h4>
-                    <p class="text-[10px] sm:text-xs text-zinc-300 mb-1 truncate">Code: <span class="font-mono text-cyan-400 break-all">${input}</span></p>
-                    <p class="text-[8px] sm:text-[10px] font-bold text-zinc-500 uppercase tracking-widest bg-black/40 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded w-fit border border-white/5 truncate">${type}</p>
+    if (type === 'gate') {
+        const user = users.find(u => u.id === input);
+        if (!user) {
+            resultHtml = `<p class='text-red-400 font-bold'>Error: User not found.</p>`;
+        } else if (!hasFestAccess(input)) {
+            resultHtml = `<p class='text-red-400 font-bold mb-2'>Error: User has no valid event registrations or accommodations.</p><p class="text-xs text-zinc-400">Access Denied at Gate.</p>`;
+        } else {
+            const userLogs = logs.filter(l => l.userId === input && (l.type === 'Gate Entry' || l.type === 'Gate Exit')).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+            const lastAction = userLogs.length > 0 ? userLogs[0].type : 'Gate Exit';
+            const nextAction = lastAction === 'Gate Entry' ? 'Gate Exit' : 'Gate Entry';
+            const btnColor = nextAction === 'Gate Entry' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500';
+
+            let historyHtml = userLogs.slice(0, 5).map(l => `<div class="flex justify-between items-center text-xs text-zinc-400 border-b border-white/5 py-1.5"><span class="${l.type === 'Gate Entry' ? 'text-emerald-400' : 'text-rose-400'} font-bold">${l.type}</span><span>${l.timestamp}</span></div>`).join('');
+
+            resultHtml = `
+                <div class="mb-4 bg-black/40 p-3 rounded-lg border border-white/5">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="text-white font-bold text-sm">Gate Access</h4>
+                            <p class="text-xs text-zinc-300">${user.name}</p>
+                            <p class="text-[10px] text-cyan-400 font-mono">${user.id}</p>
+                        </div>
+                        <div class="px-2 py-1 bg-zinc-800 rounded text-[10px] font-bold ${lastAction === 'Gate Entry' ? 'text-emerald-400' : 'text-rose-400'} uppercase">Currently ${lastAction === 'Gate Entry' ? 'Inside' : 'Outside'}</div>
+                    </div>
                 </div>
-            </div>
-            <div class="flex flex-col sm:flex-row gap-2 w-full">
-                <button onclick="document.getElementById('scan-result').innerHTML='<p class=\\'text-cyan-400 font-bold text-xs sm:text-sm text-center w-full break-words\\'>Team Attendance Marked by ${window.userProfile.email}</p>';" class="flex-1 py-2 sm:py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white font-bold text-[9px] sm:text-xs uppercase tracking-widest transition text-center w-full">
-                    Admit Full Team
+                <button onclick="window.markGateLog('${user.id}', '${nextAction}', '${input}')" class="w-full py-2.5 ${btnColor} rounded-lg text-white font-bold text-xs uppercase tracking-widest transition text-center mb-4 shadow-lg">
+                    Mark ${nextAction}
                 </button>
-                <button onclick="document.getElementById('scan-input').value=''; document.getElementById('scan-result').classList.add('hidden');" class="flex-1 py-2 sm:py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-white font-bold text-[9px] sm:text-xs uppercase tracking-widest transition text-center w-full">
-                    Next Scan
-                </button>
-            </div>`;
-    } else {
-        resultHtml = `
-            <div class="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4 w-full">
-                <i data-lucide="check-circle" class="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500 mt-0.5 sm:mt-1 shrink-0"></i>
-                <div class="flex-grow min-w-0">
-                    <h4 class="text-white font-bold text-xs sm:text-sm truncate">Valid Entry Found</h4>
-                    <p class="text-[10px] sm:text-xs text-zinc-300 mb-1 truncate">ID: <span class="font-mono text-cyan-400 break-all">${input}</span></p>
-                    <p class="text-[8px] sm:text-[10px] font-bold text-zinc-500 uppercase tracking-widest bg-black/40 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded w-fit border border-white/5 truncate">${type}</p>
+                <div class="bg-black/50 rounded-lg p-3">
+                    <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-2 border-b border-white/10 pb-1">Recent Gate History</p>
+                    ${historyHtml || '<p class="text-xs text-zinc-600 italic">No previous gate logs.</p>'}
                 </div>
-            </div>
-            <div class="flex flex-col sm:flex-row gap-2 w-full">
-                <button onclick="document.getElementById('scan-result').innerHTML='<p class=\\'text-emerald-400 font-bold text-xs sm:text-sm text-center w-full break-words\\'>Attendance Marked by ${window.userProfile.email}</p>';" class="flex-1 py-2 sm:py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white font-bold text-[9px] sm:text-xs uppercase tracking-widest transition text-center w-full">
-                    Mark Checked-In
-                </button>
-                <button onclick="document.getElementById('scan-input').value=''; document.getElementById('scan-result').classList.add('hidden');" class="flex-1 py-2 sm:py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-white font-bold text-[9px] sm:text-xs uppercase tracking-widest transition text-center w-full">
-                    Next Scan
-                </button>
-            </div>`;
+            `;
+        }
+    } 
+    else if (type === 'event') {
+        if (input.startsWith('AUT-TEAM-')) {
+            const reg = regs.find(r => r.teamCode === input);
+            if (!reg) {
+                resultHtml = `<p class='text-red-400 font-bold'>Error: Team not found.</p>`;
+            } else {
+                const event = allEvents.find(e => e.id === reg.eventId);
+                const eventName = event ? event.name : reg.eventId;
+                const allMemberIds = [reg.leader, ...(reg.members || [])].filter(m => m !== 'Pending');
+                
+                let membersHtml = allMemberIds.map(uid => {
+                    const hasEntered = logs.some(l => l.userId === uid && l.type === 'Event Entry: ' + reg.eventId);
+                    const name = getUserName(uid);
+                    if (hasEntered) {
+                        return `<label class="flex items-center gap-3 p-2 bg-emerald-900/10 border border-emerald-500/20 rounded-lg opacity-60"><input type="checkbox" disabled class="w-4 h-4 rounded border-zinc-600 text-emerald-500 bg-emerald-900/50" checked><div class="flex-1 min-w-0"><p class="text-xs text-white truncate">${name}</p><p class="text-[10px] text-emerald-400">Already Entered</p></div></label>`;
+                    } else {
+                        return `<label class="flex items-center gap-3 p-2 bg-black/40 border border-white/10 rounded-lg cursor-pointer hover:bg-white/5"><input type="checkbox" value="${uid}" class="team-entry-checkbox w-4 h-4 rounded border-zinc-600 text-blue-500 bg-black/50" checked><div class="flex-1 min-w-0"><p class="text-xs text-white truncate">${name}</p><p class="text-[10px] text-zinc-400 font-mono">${uid}</p></div></label>`;
+                    }
+                }).join('');
+
+                resultHtml = `
+                    <div class="mb-4 bg-black/40 p-3 rounded-lg border border-white/5">
+                        <h4 class="text-white font-bold text-sm truncate">${eventName}</h4>
+                        <p class="text-xs text-zinc-300">Team: ${reg.teamName}</p>
+                        <p class="text-[10px] text-cyan-400 font-mono">${reg.teamCode}</p>
+                    </div>
+                    <div class="mb-4 space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                        ${membersHtml}
+                    </div>
+                    <button onclick="window.markTeamEventEntry('${reg.eventId}', '${eventName}', '${input}')" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold text-xs uppercase tracking-widest transition text-center shadow-lg">
+                        Admit Selected Members
+                    </button>
+                `;
+            }
+        } else {
+            // Account ID
+            const user = users.find(u => u.id === input);
+            if (!user) {
+                resultHtml = `<p class='text-red-400 font-bold'>Error: User not found.</p>`;
+            } else {
+                const userRegs = regs.filter(r => r.leader === input || (r.members && r.members.includes(input)));
+                if (userRegs.length === 0) {
+                    resultHtml = `<p class='text-red-400 font-bold mb-2'>Error: User has no event registrations.</p>`;
+                } else {
+                    let eventsListHtml = userRegs.map(reg => {
+                        const event = allEvents.find(e => e.id === reg.eventId);
+                        const eventName = event ? event.name : reg.eventId;
+                        const hasEntered = logs.some(l => l.userId === input && l.type === 'Event Entry: ' + reg.eventId);
+                        
+                        if (hasEntered) {
+                            return `<div class="flex justify-between items-center p-2 bg-emerald-900/10 border border-emerald-500/20 rounded-lg opacity-70 mb-2"><div class="min-w-0"><p class="text-xs text-white truncate">${eventName}</p><p class="text-[10px] text-emerald-400">Already Entered</p></div><i data-lucide="check-circle" class="w-5 h-5 text-emerald-500 shrink-0"></i></div>`;
+                        } else {
+                            return `<div class="flex justify-between items-center p-2 bg-black/40 border border-white/10 rounded-lg mb-2"><div class="min-w-0"><p class="text-xs text-white truncate">${eventName}</p><p class="text-[10px] text-zinc-400">${reg.teamName || 'Individual'}</p></div><button onclick="window.markSingleEventEntry('${input}', '${reg.eventId}', '${eventName}', '${input}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[10px] font-bold transition shrink-0 shadow">Mark Entry</button></div>`;
+                        }
+                    }).join('');
+
+                    resultHtml = `
+                        <div class="mb-4 bg-black/40 p-3 rounded-lg border border-white/5">
+                            <h4 class="text-white font-bold text-sm">Event Access</h4>
+                            <p class="text-xs text-zinc-300">${user.name}</p>
+                            <p class="text-[10px] text-cyan-400 font-mono">${user.id}</p>
+                        </div>
+                        <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-2 border-b border-white/10 pb-1">Registered Events</p>
+                        <div class="max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                            ${eventsListHtml}
+                        </div>
+                    `;
+                }
+            }
+        }
+    }
+    else if (type === 'accom') {
+        const user = users.find(u => u.id === input);
+        if (!user) {
+            resultHtml = `<p class='text-red-400 font-bold'>Error: User not found.</p>`;
+        } else {
+            const accom = accoms.find(a => a.id === input);
+            if (!accom) {
+                resultHtml = `<p class='text-red-400 font-bold'>Error: No accommodation booked for this user.</p>`;
+            } else {
+                const hasFinalExit = logs.some(l => l.userId === input && l.type === 'Accom Final Exit');
+                
+                if (hasFinalExit) {
+                    resultHtml = `
+                        <div class="mb-4 bg-red-900/20 p-3 rounded-lg border border-red-500/30">
+                            <h4 class="text-red-400 font-bold text-sm">Access Revoked</h4>
+                            <p class="text-xs text-zinc-300 mt-1">${user.name} (${user.id})</p>
+                            <p class="text-[10px] text-red-300 mt-2 font-bold">User has permanently exited accommodation and cannot re-enter.</p>
+                        </div>`;
+                } else {
+                    const userLogs = logs.filter(l => l.userId === input && l.type.startsWith('Accom ')).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    let historyHtml = userLogs.slice(0, 5).map(l => `<div class="flex justify-between items-center text-xs text-zinc-400 border-b border-white/5 py-1.5"><span class="${l.type.includes('Entry') ? 'text-emerald-400' : 'text-rose-400'} font-bold">${l.type}</span><span>${l.timestamp}</span></div>`).join('');
+
+                    resultHtml = `
+                        <div class="mb-4 bg-black/40 p-3 rounded-lg border border-white/5">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="text-white font-bold text-sm">Hostel Access</h4>
+                                    <p class="text-xs text-zinc-300">${user.name}</p>
+                                    <p class="text-[10px] text-cyan-400 font-mono">${user.id}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] text-zinc-500 font-bold uppercase">Wing: <span class="text-blue-400">${accom.wing}</span></p>
+                                    <p class="text-[10px] text-zinc-500 font-bold uppercase mt-1">Room: <span class="text-white">${accom.room || 'Pending'}</span></p>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-[10px] text-zinc-400 bg-zinc-900 p-2 rounded border border-white/5"><strong>Booked:</strong> ${accom.duration}</div>
+                        </div>
+                        <div class="flex gap-2 mb-4">
+                            <button onclick="window.markAccomLog('${user.id}', 'Accom Entry', '${input}')" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white font-bold text-xs uppercase tracking-widest transition text-center shadow-lg">
+                                Mark Entry
+                            </button>
+                            <button onclick="if(confirm('Are you sure? This is a FINAL EXIT. User will not be allowed back in.')) window.markAccomLog('${user.id}', 'Accom Final Exit', '${input}')" class="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-white font-bold text-xs uppercase tracking-widest transition text-center shadow-lg">
+                                Final Exit
+                            </button>
+                        </div>
+                        <div class="bg-black/50 rounded-lg p-3">
+                            <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-2 border-b border-white/10 pb-1">Accommodation Log</p>
+                            ${historyHtml || '<p class="text-xs text-zinc-600 italic">No previous records.</p>'}
+                        </div>
+                    `;
+                }
+            }
+        }
     }
 
-    resDiv.className = "mt-4 sm:mt-6 text-left p-3 sm:p-4 rounded-xl border bg-emerald-900/20 border-emerald-500/30 animate-[fadeInSlide_0.2s_ease-out] w-full";
     resDiv.innerHTML = resultHtml;
     if(typeof window.renderIcons === 'function') window.renderIcons();
 };
 
-window.populateScannerEventDropdown = function() {
-    const select = document.getElementById('scan-event-select');
-    if (!select) return;
+window.markGateLog = async function(userId, action, inputStr) {
+    await window.DatabaseAPI.add('logs', {
+        id: userId,
+        userId: userId,
+        type: action,
+        timestamp: new Date().toLocaleString(),
+        by: window.userProfile.email
+    });
+    window.simulateScan(inputStr);
+    if (window.currentRole >= window.ROLES.ADMIN) window.renderAnalytics();
+};
 
-    select.innerHTML = '';
+window.markSingleEventEntry = async function(userId, eventId, eventName, inputStr) {
+    await window.DatabaseAPI.add('logs', {
+        id: userId,
+        userId: userId,
+        type: 'Event Entry: ' + eventId,
+        timestamp: new Date().toLocaleString(),
+        by: window.userProfile.email
+    });
+    window.simulateScan(inputStr);
+    if (window.currentRole >= window.ROLES.ADMIN) window.renderAnalytics();
+};
+
+window.markTeamEventEntry = async function(eventId, eventName, inputStr) {
+    const checkboxes = document.querySelectorAll('.team-entry-checkbox:checked');
+    if(checkboxes.length === 0) return window.showMessage("Select at least one member.");
     
-    for (const [cat, events] of Object.entries(window.EVENTS_DATA || {})) {
-        const optgroup = document.createElement('optgroup');
-        optgroup.label = cat.toUpperCase();
-        
-        events.forEach(ev => {
-            const option = document.createElement('option');
-            option.value = ev.id;
-            option.textContent = ev.name;
-            optgroup.appendChild(option);
+    for(let box of checkboxes) {
+        const uid = box.value;
+        await window.DatabaseAPI.add('logs', {
+            id: uid,
+            userId: uid,
+            type: 'Event Entry: ' + eventId,
+            timestamp: new Date().toLocaleString(),
+            by: window.userProfile.email
         });
-        
-        select.appendChild(optgroup);
     }
+    window.simulateScan(inputStr);
+    if (window.currentRole >= window.ROLES.ADMIN) window.renderAnalytics();
+};
+
+window.markAccomLog = async function(userId, action, inputStr) {
+    await window.DatabaseAPI.add('logs', {
+        id: userId,
+        userId: userId,
+        type: action,
+        timestamp: new Date().toLocaleString(),
+        by: window.userProfile.email
+    });
+    window.simulateScan(inputStr);
+    if (window.currentRole >= window.ROLES.ADMIN) window.renderAnalytics();
+};
+
+window.populateScannerEventDropdown = function() {
+    // Left empty: Dropdown UI mechanics obsolete. Replaced by dynamic UI generation.
 };
 
 window.toggleEventSelectScanner = function() {
-    const type = document.getElementById('scan-type').value;
     const eventContainer = document.getElementById('scanner-event-container');
-    if (!eventContainer) return;
-
-    if (type === 'event') {
-        eventContainer.classList.remove('hidden');
-    } else {
-        eventContainer.classList.add('hidden');
+    if (eventContainer) {
+        eventContainer.classList.add('hidden'); // Automatically hide old UI
     }
 };
 
@@ -1185,6 +1357,10 @@ window.openQueryDetails = async function(id) {
             <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Message</span>
                  <div class="bg-black/40 p-4 rounded-xl border border-white/5 text-zinc-300 whitespace-pre-wrap">${q.message}</div>
             </div>
+            ${q.replyText ? `
+            <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Admin Action History</span>
+                 <div class="bg-blue-900/10 p-4 rounded-xl border border-blue-500/20 text-blue-300 whitespace-pre-wrap text-[11px] font-mono leading-relaxed">${q.replyText}</div>
+            </div>` : ''}
         </div>
     `;
     document.getElementById('adminDetailsFooter').innerHTML = `
@@ -1239,7 +1415,7 @@ window.openSponsorDetails = async function(id) {
 
     let msgHtml = s.message ? `
         <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Message</span>
-             <div class="bg-black/40 p-4 rounded-xl border border-white/5 break-words text-white">
+             <div class="bg-black/40 p-4 rounded-xl border border-white/5 break-words text-white whitespace-pre-wrap">
                 ${s.message}
              </div>
         </div>` : '';
@@ -1255,6 +1431,10 @@ window.openSponsorDetails = async function(id) {
             </div>
             ${msgHtml}
             ${linkHtml}
+            ${s.replyText ? `
+            <div><span class="text-zinc-500 text-xs uppercase tracking-widest font-bold block mb-1">Admin Action History</span>
+                 <div class="bg-blue-900/10 p-4 rounded-xl border border-blue-500/20 text-blue-300 whitespace-pre-wrap text-[11px] font-mono leading-relaxed">${s.replyText}</div>
+            </div>` : ''}
         </div>
     `;
     document.getElementById('adminDetailsFooter').innerHTML = `

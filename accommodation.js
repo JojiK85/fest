@@ -3,10 +3,7 @@
 // ==========================================
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Only run this if we are actually on the accommodation page
     if (document.getElementById('roomWing')) {
-        // 🔥 FIX 1: Remove the 100ms timeout that caused the flicker.
-        // Wait for the user profile to load, or execute immediately if cached.
         if (window.userProfile && window.userProfile.accountId) {
             window.setupAccommodationForm();
         } else {
@@ -19,12 +16,10 @@ window.setupAccommodationForm = function() {
     const wingSelect = document.getElementById('roomWing');
     if(!wingSelect) return;
     
-    // 🔥 FIX 2: Anti-flicker class mechanism
     const formContainer = wingSelect.closest('.bg-zinc-900');
     if (formContainer && !formContainer.classList.contains('setup-complete')) {
-        formContainer.style.opacity = '0'; // Hide momentarily during DOM transformation
+        formContainer.style.opacity = '0'; 
         
-        // Auto-select and lock wing based on gender
         if (window.userProfile && window.userProfile.gender === 'Female') {
             wingSelect.value = 'female';
             wingSelect.disabled = true;
@@ -38,7 +33,6 @@ window.setupAccommodationForm = function() {
             wingSelect.classList.remove('opacity-50');
         }
         
-        // Transform UI to Multi-day checkboxes
         const durContainer = document.getElementById('roomDuration')?.parentElement;
         if (durContainer && !document.getElementById('day1Check')) {
             durContainer.innerHTML = `
@@ -65,7 +59,6 @@ window.setupAccommodationForm = function() {
         
         window.calculateRoomCost();
         
-        // Fade the completely constructed UI in smoothly
         formContainer.classList.add('setup-complete');
         setTimeout(() => {
             formContainer.style.transition = 'opacity 0.4s ease-in-out';
@@ -81,7 +74,6 @@ window.calculateRoomCost = function() {
     const costBox = document.getElementById('roomTotalCost');
     if(costBox) costBox.innerText = `₹${price * days}`;
     
-    // Update global state tracking the pending fee
     window.currentPendingFee = price * days;
 };
 
@@ -98,7 +90,6 @@ window.processRoomBooking = async function() {
     const daysArray = Array.from(checks).map(c => c.value);
     const selectedDays = daysArray.join(', ');
 
-    // Gender Verification for roommates
     if (roommateId) {
         const users = await window.DatabaseAPI.get('users');
         const friends = roommateId.split(',').map(s => s.trim());
@@ -118,7 +109,6 @@ window.processRoomBooking = async function() {
 
     if(typeof showMessage === 'function') showMessage("Verifying live room availability...");
 
-    // 🔥 FIX 3: Actually utilize the dynamic `checkAccomAvailability` from shared.js
     const availability = await window.checkAccomAvailability(wing, daysArray);
     
     if (!availability.available) {
@@ -141,9 +131,11 @@ window.processRoomBooking = async function() {
 
             await window.DatabaseAPI.add('accommodations', {
                 id: window.userProfile.accountId, 
-                name: window.userProfile.name, 
+                userId: window.userProfile.accountId, // Matches BCNF Definition
                 wing: wing, 
-                duration: selectedDays, 
+                day1: daysArray.includes('Day 1') ? 'yes' : 'no', // Strictly converts to atomic data structures
+                day2: daysArray.includes('Day 2') ? 'yes' : 'no',
+                day3: daysArray.includes('Day 3') ? 'yes' : 'no',
                 requested: roommateId || "None", 
                 room: null, 
                 payId: payId

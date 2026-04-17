@@ -12,7 +12,6 @@
             const role = parsed.currentRole || 0;
             let css = '';
             
-            // 🔥 INSTANT NAVBAR FIX: Forces Admin & Notification buttons to appear instantly at 0ms
             if (role >= 1) {
                 css += '#nav-admin { display: inline-block !important; } ';
                 css += '#mobile-nav-admin { display: block !important; } ';
@@ -21,7 +20,6 @@
                 css += '#nav-notif-btn, #mobile-nav-notif { display: flex !important; } ';
             }
 
-            // Admin Dashboard access controls
             if (role < 4) css += '#danger-zone-container { display: none !important; } ';
             if (role < 3) css += '#tab-btn-settings { display: none !important; } ';
             if (role < 2) css += '#tab-btn-events, #tab-btn-prizes, #tab-btn-accom, #tab-btn-gallery, #tab-btn-users, #tab-btn-queries, #tab-btn-sponsors { display: none !important; } ';
@@ -756,7 +754,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     window.renderIcons();
 
-    // Trigger Accommodation Setup specifically if on the accommodation page
     if (currentPage === 'accommodation') {
         if (window.userProfile && window.userProfile.accountId) {
             window.setupAccommodationForm();
@@ -781,7 +778,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (typeof window.updateAdminBadges === 'function') window.updateAdminBadges();
         if (typeof window.refreshNotificationBadges === 'function') window.refreshNotificationBadges();
         
-        // Keep active Admin Dashboard tables perfectly synced / live
         if (window.isAdmin) {
             const tabs = [
                 { id: 'admin-analytics-tab', fn: () => { if(typeof window.renderAnalytics === 'function') window.renderAnalytics(false); } },
@@ -858,7 +854,17 @@ window.populateUserProfile = async function(user) {
 
     window.userProfile.registrations = regs.filter(r => r.leader === user.id || (r.members && r.members.includes(user.id)));
     window.userProfile.payments = pays.filter(p => p.user === user.id);
-    window.userProfile.accommodation = accoms.find(a => a.id === user.id) || null;
+    
+    // Convert day mapping back into duration string for UI
+    const accomData = accoms.find(a => a.id === user.id) || null;
+    if (accomData) {
+        let dur = [];
+        if(accomData.day1 === 'yes') dur.push('Day 1');
+        if(accomData.day2 === 'yes') dur.push('Day 2');
+        if(accomData.day3 === 'yes') dur.push('Day 3');
+        accomData.duration = dur.join(', ');
+    }
+    window.userProfile.accommodation = accomData;
 };
 
 window.renderIcons = function() {
@@ -936,7 +942,6 @@ window.finalizeLoginUI = function() {
         if (typeof window.updateAdminBadges === 'function') window.updateAdminBadges();
     }
     
-    // Notifications no longer dynamically injected (handled by anti-flicker css + html now)
     if(typeof renderIcons === 'function') renderIcons();
     window.refreshNotificationBadges();
 };
@@ -1052,7 +1057,6 @@ window.openNotifications = async function() {
         return;
     }
 
-    // Group by threadId
     const threads = {};
     myNotifs.forEach(n => {
         const tId = n.threadId || n.id;
@@ -1063,12 +1067,11 @@ window.openNotifications = async function() {
         if (String(n.isRead) === 'false') threads[tId].unreadCount++;
     });
 
-    // Sort threads by the date of their latest message
     const sortedThreads = Object.values(threads).map(t => {
-        t.messages.sort((a, b) => new Date(a.date) - new Date(b.date)); // Oldest to newest
+        t.messages.sort((a, b) => new Date(a.date) - new Date(b.date)); 
         t.latestMessage = t.messages[t.messages.length - 1];
         return t;
-    }).sort((a, b) => new Date(b.latestMessage.date) - new Date(a.latestMessage.date)); // Newest thread first
+    }).sort((a, b) => new Date(b.latestMessage.date) - new Date(a.latestMessage.date)); 
 
     list.innerHTML = sortedThreads.map(t => {
         const n = t.latestMessage;
@@ -1084,7 +1087,6 @@ window.openNotifications = async function() {
                 <button onclick="event.stopPropagation(); window.DatabaseAPI.delete('notifications', '${n.id}'); window.openNotifications();" class="px-4 py-1.5 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-lg text-[10px] font-bold transition">Decline</button>
             </div>`;
         } else {
-            // System alerts
             actionBtn = `<button onclick="event.stopPropagation(); window.DatabaseAPI.delete('notifications', '${n.id}'); window.openNotifications();" class="mt-3 px-4 py-1.5 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 rounded-lg text-[10px] font-bold transition">Dismiss</button>`;
         }
 
@@ -1113,14 +1115,12 @@ window.openNotifications = async function() {
 window.prepareUserReply = async function(threadId, overrideEmail = null) {
     const notifs = await window.DatabaseAPI.get('notifications');
     
-    // Get all messages in this thread
     const threadMsgs = notifs.filter(x => x.threadId === threadId || x.id === threadId).sort((a,b) => new Date(a.date) - new Date(b.date));
     
     if (threadMsgs.length === 0) return;
     
-    const n = threadMsgs[threadMsgs.length - 1]; // Latest message for context
+    const n = threadMsgs[threadMsgs.length - 1]; 
     
-    // Resolve target email for UI header
     let targetEmail = 'Admin';
     if (window.isAdmin && overrideEmail) {
         targetEmail = overrideEmail;
@@ -1155,7 +1155,6 @@ window.prepareUserReply = async function(threadId, overrideEmail = null) {
     
     chatHtml += `</div>`;
     
-    // Append chat interface instead of just overriding text
     document.getElementById('userReplyContext').innerHTML += chatHtml;
     
     setTimeout(() => {
@@ -1181,8 +1180,7 @@ window.sendUserReply = async function() {
     const threadMsgs = notifs.filter(n => n.threadId === threadId || n.id === threadId);
     const lastMsg = threadMsgs[threadMsgs.length - 1];
 
-    // Determine the receiver based on the last message in the thread
-    let receiverId = 'admin'; // Default fallback
+    let receiverId = 'admin'; 
     if (window.isAdmin && lastMsg) {
         receiverId = lastMsg.senderId === 'admin' ? lastMsg.userId : lastMsg.senderId;
     } else if (!window.isAdmin) {
@@ -1192,7 +1190,7 @@ window.sendUserReply = async function() {
     const newMsg = {
         id: "notif_" + Date.now().toString(),
         threadId: threadId,
-        userId: receiverId, // This places it in the receiver's inbox
+        userId: receiverId, 
         senderId: window.isAdmin ? 'admin' : window.userProfile.accountId,
         senderEmail: window.isAdmin ? 'admin@autumnfest.in' : window.userProfile.email,
         type: "chat_message",
@@ -1204,7 +1202,6 @@ window.sendUserReply = async function() {
 
     await window.DatabaseAPI.add('notifications', newMsg);
     
-    // Live UI Update: Append directly to the active chat box without reloading modal
     const chatBox = document.getElementById('chatHistoryBox');
     if (chatBox) {
         chatBox.innerHTML += `
@@ -1242,7 +1239,6 @@ window.openAdminReplyModal = function(collection, id, email, name = '') {
     if(typeof window.openModal === 'function') window.openModal('adminReplyModal');
 };
 
-// Helper function to extract plain text from WYSIWYG editor
 const parseHTMLtoText = (html) => {
     return html.replace(/<br\s*\/?>/gi, '\n')
                .replace(/<\/p>/gi, '\n')
@@ -1260,7 +1256,6 @@ window.executeAdminReply = async function() {
     const subject = document.getElementById('adminReplySubject')?.value || "Reply from Autumn Fest";
     const rawText = msgBox ? parseHTMLtoText(msgBox.innerHTML) : "";
     
-    // Dispatch Email
     try {
         await fetch(`${window.BASE_URL}/send-mail`, {
             method: 'POST',
@@ -1275,10 +1270,8 @@ window.executeAdminReply = async function() {
         console.error("Mail Dispatch Failed:", e);
     }
     
-    // Determine the Thread ID for tracking
     const threadId = window.replyTargetId || ("thread_" + Date.now().toString());
 
-    // Log Admin History in the Query/Sponsor Tracker
     let statusText = window.replyTargetCollection === 'queries' ? 'Replied' : 'Reviewed & Replied';
     if (window.replyTargetCollection !== 'users' && window.replyTargetCollection) {
         const allItems = await window.DatabaseAPI.get(window.replyTargetCollection);
@@ -1290,7 +1283,6 @@ window.executeAdminReply = async function() {
         await window.DatabaseAPI.update(window.replyTargetCollection, window.replyTargetId, { status: statusText, replyText: newReplyText });
     }
     
-    // Push In-App Notification directly to the User (Grouped to threadId)
     try {
         const allUsers = await window.DatabaseAPI.get('users');
         const targetUser = allUsers.find(u => u.email && u.email.toLowerCase() === window.replyTargetEmail.toLowerCase());
@@ -1303,7 +1295,7 @@ window.executeAdminReply = async function() {
                 senderEmail: window.userProfile.email,
                 type: 'chat_message',
                 title: subject,
-                message: rawText, // Pure text instead of HTML
+                message: rawText, 
                 date: new Date().toLocaleString(),
                 isRead: 'false'
             });
@@ -1315,7 +1307,6 @@ window.executeAdminReply = async function() {
     if(typeof window.renderAdminDashboard === 'function') window.renderAdminDashboard(); 
 };
 
-// Update how Admin Action history is rendered in Query/Sponsor modals to preserve newlines
 window.openQueryDetails = async function(id) {
     const queries = await window.DatabaseAPI.get('queries');
     const q = queries.find(x => x.id === id);
@@ -1960,7 +1951,6 @@ window.setupAccommodationForm = function() {
     const wingSelect = document.getElementById('roomWing');
     if(!wingSelect) return;
     
-    // Auto-select and lock wing based on gender to prevent tampering
     if (window.userProfile && window.userProfile.gender === 'Female') {
         wingSelect.value = 'female';
         wingSelect.disabled = true;
@@ -1974,11 +1964,9 @@ window.setupAccommodationForm = function() {
         wingSelect.classList.remove('opacity-50');
     }
     
-    // Calculate initial room cost immediately
     window.calculateRoomCost();
     
-    // Fade the completely constructed UI in smoothly to avoid any CSS jumps
-    const formContainer = document.getElementById('bookingFormContainer');
+    const formContainer = document.getElementById('bookingFormContainer') || wingSelect.closest('.bg-zinc-900');
     if (formContainer && !formContainer.classList.contains('setup-complete')) {
         formContainer.classList.add('setup-complete');
         setTimeout(() => {
@@ -1995,7 +1983,6 @@ window.calculateRoomCost = function() {
     const costBox = document.getElementById('roomTotalCost');
     if(costBox) costBox.innerText = `₹${price * days}`;
     
-    // Update global state tracking the pending fee for Razorpay
     window.currentPendingFee = price * days;
 };
 
@@ -2012,7 +1999,6 @@ window.processRoomBooking = async function() {
     const daysArray = Array.from(checks).map(c => c.value);
     const selectedDays = daysArray.join(', ');
 
-    // Gender Verification for roommates if IDs are provided
     if (roommateId) {
         const users = await window.DatabaseAPI.get('users');
         const friends = roommateId.split(',').map(s => s.trim());
@@ -2032,7 +2018,6 @@ window.processRoomBooking = async function() {
 
     if(typeof window.showMessage === 'function') window.showMessage("Verifying live room availability...");
 
-    // Validate availability dynamically via shared logic
     const availability = await window.checkAccomAvailability(wing, daysArray);
     
     if (!availability.available) {
@@ -2042,7 +2027,6 @@ window.processRoomBooking = async function() {
 
     window.calculateRoomCost();
     
-    // Trigger standard payment gateway flow
     if (typeof window.processRazorpayPayment === 'function') {
         window.processRazorpayPayment(window.currentPendingFee, "Accommodation Booking Successful!", async (payId) => {
             window.userProfile.accommodation = {
@@ -2056,9 +2040,11 @@ window.processRoomBooking = async function() {
 
             await window.DatabaseAPI.add('accommodations', {
                 id: window.userProfile.accountId, 
-                name: window.userProfile.name, 
+                userId: window.userProfile.accountId, // Matches BCNF
                 wing: wing, 
-                duration: selectedDays, 
+                day1: daysArray.includes('Day 1') ? 'yes' : 'no', // Maps array to physical BCNF columns
+                day2: daysArray.includes('Day 2') ? 'yes' : 'no',
+                day3: daysArray.includes('Day 3') ? 'yes' : 'no',
                 requested: roommateId || "None", 
                 room: null, 
                 payId: payId
