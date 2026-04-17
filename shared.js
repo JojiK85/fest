@@ -468,7 +468,11 @@ window.injectSharedComponents = function() {
 // ==========================================
 // 2. DATABASE API
 // ==========================================
+<<<<<<< HEAD
 window.BASE_URL = 'http://localhost:5000/api'; 
+=======
+window.BASE_URL = 'https://autumn-fest-backend.onrender.com/api'; // Or https://autumn-fest-backend.onrender.com/api
+>>>>>>> 0b28f7832c63b0aa7ee30354c58ed9deedc21f87
 
 window.DatabaseAPI = {
     _data: {
