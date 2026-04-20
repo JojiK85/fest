@@ -466,7 +466,7 @@ window.injectSharedComponents = function() {
 // ==========================================
 // 2. DATABASE API
 // ==========================================
-window.BASE_URL = 'https://autumn-fest-backend.onrender.com'; 
+window.BASE_URL = 'https://autumn-fest-backend.onrender.com/api'; 
 
 window.DatabaseAPI = {
     _data: {
