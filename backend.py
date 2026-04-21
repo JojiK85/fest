@@ -91,7 +91,11 @@ TABLE_MAPPING = {
     'gallery': 'gallery',
     'accommodations': 'accommodations',
     'registrations': 'teams', 
-    'settings': 'settings'
+    'settings': 'settings',
+    # Added explicit Junction Tables for standalone sync
+    'team_members': 'team_members',
+    'accommodation_requests': 'accommodation_requests',
+    'gallery_likes': 'gallery_likes'
 }
 
 TABLE_COLUMNS = {
@@ -107,13 +111,18 @@ TABLE_COLUMNS = {
     'gallery': ['id', 'url', 'eventId', 'caption', 'userId', 'status', 'tags', 'likes'],
     'accommodations': ['id', 'userId', 'wing', 'day1', 'day2', 'day3', 'room', 'payId'],
     'teams': ['id', 'eventId', 'teamName', 'teamCode', 'leader', 'payment', 'payId'],
-    'settings': ['id', 'maleRooms', 'femaleRooms', 'perRoom', 'data']
+    'settings': ['id', 'maleRooms', 'femaleRooms', 'perRoom', 'data'],
+    # Added explicit Junction Tables columns
+    'team_members': ['team_id', 'user_id'],
+    'accommodation_requests': ['accommodation_id', 'requested_user_id'],
+    'gallery_likes': ['gallery_id', 'user_id']
 }
 
 def init_db():
     if not parsed_uri: return
     conn = get_db_connection()
     with conn.cursor() as cursor:
+        
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id VARCHAR(100) PRIMARY KEY, 
@@ -191,7 +200,8 @@ def init_db():
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS logs (
-                id VARCHAR(100) PRIMARY KEY, 
+                log_pk INT AUTO_INCREMENT PRIMARY KEY,
+                id VARCHAR(100), 
                 type VARCHAR(255), 
                 timestamp VARCHAR(100), 
                 userId VARCHAR(100), 
@@ -426,6 +436,13 @@ def sync_to_google_sheets(api_collection_name):
             if 'userId' in doc_data: 
                 doc_data['userName'] = get_name(doc_data['userId'])
                 del doc_data['userId']
+                
+            # Mapping logic specifically for the new raw Junction Tables
+            if 'user_id' in doc_data: 
+                doc_data['userName'] = get_name(doc_data['user_id'])
+            if 'requested_user_id' in doc_data:
+                doc_data['requestedUserName'] = get_name(doc_data['requested_user_id'])
+                
             if 'requested' in doc_data and doc_data['requested']:
                 req_names = [get_name(x.strip()) for x in doc_data['requested'].split(',')]
                 doc_data['requestedNames'] = ' & '.join(req_names)
@@ -441,11 +458,30 @@ def sync_to_google_sheets(api_collection_name):
             all_keys.update(doc_data.keys())
             parsed_records.append(doc_data)
         
-        headers = ['id'] + sorted([k for k in list(all_keys) if k != 'id'])
+        # Smart Header Sorting (Accounts for composite junction table keys)
+        headers_list = list(all_keys)
+        if 'id' in headers_list:
+            headers_list.remove('id')
+            headers = ['id'] + sorted(headers_list)
+        elif 'team_id' in headers_list:
+            headers_list.remove('team_id')
+            headers = ['team_id'] + sorted(headers_list)
+        elif 'gallery_id' in headers_list:
+            headers_list.remove('gallery_id')
+            headers = ['gallery_id'] + sorted(headers_list)
+        elif 'accommodation_id' in headers_list:
+            headers_list.remove('accommodation_id')
+            headers = ['accommodation_id'] + sorted(headers_list)
+        elif 'email' in headers_list:
+            headers_list.remove('email')
+            headers = ['email'] + sorted(headers_list)
+        else:
+            headers = sorted(headers_list)
+            
         rows = [headers]
         for p_rec in parsed_records:
-            row = [p_rec.get('id', '')]
-            for k in headers[1:]:
+            row = []
+            for k in headers:
                 val = p_rec.get(k, '')
                 if isinstance(val, (list, dict)):
                     val = json.dumps(val)
