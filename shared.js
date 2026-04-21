@@ -1,3 +1,4 @@
+
 // ==========================================
 // 0. ANTI-FLICKER & INIT
 // ==========================================
@@ -106,6 +107,101 @@ window.injectSharedComponents = function() {
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('adminAddUserModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
                 <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0 gap-4">
+                    <h3 class="text-lg sm:text-xl font-bold text-white flex-1 min-w-0 truncate break-words">Assign Role</h3>
+                    <button onclick="closeModal('adminAddUserModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                <div class="p-4 sm:p-6 overflow-y-auto w-full custom-scrollbar flex-1 min-h-0 flex flex-col gap-4">
+                    <div class="bg-black/40 p-4 rounded-xl border border-white/10">
+                        <h4 class="text-white font-bold text-sm mb-3">Pre-assign Individual</h4>
+                        <input type="email" id="newUserEmail" placeholder="User Email" class="w-full bg-black/60 border border-white/20 rounded-lg px-3 py-2 text-white text-xs sm:text-sm focus:border-blue-500 mb-3 outline-none">
+                        <select id="newUserRole" class="w-full bg-black/60 border border-white/20 rounded-lg px-3 py-2 text-white text-xs sm:text-sm focus:border-blue-500 mb-3 outline-none appearance-none">
+                            <option value="0">User (L0)</option><option value="1">Admin (L1)</option><option value="2">Super Admin (L2)</option><option value="3">Super Account (L3)</option>
+                        </select>
+                        <button onclick="adminAddSingleUser()" class="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold text-xs transition">Assign Role</button>
+                    </div>
+                    <div class="bg-black/40 p-4 rounded-xl border border-white/10">
+                        <h4 class="text-white font-bold text-sm mb-3">Bulk Pre-assign (CSV)</h4>
+                        <p class="text-[10px] text-zinc-400 mb-3 leading-relaxed">Upload a CSV with columns: <b>email, role</b>.<br>Roles: 0=User, 1=Admin, 2=SuperAdmin, 3=SuperAccount.</p>
+                        <input type="file" id="bulkRoleUpload" accept=".csv" class="w-full text-[10px] text-zinc-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 mb-3 cursor-pointer outline-none">
+                        <button onclick="adminBulkUploadUsers()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white font-bold text-xs transition">Upload & Process</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="accomSettingsModal" class="fixed inset-0 z-[160] hidden items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('accomSettingsModal')"></div>
+            <div class="relative w-full max-h-[85dvh] max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-[fadeInSlide_0.3s_ease-out]">
+                <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5 text-blue-400"></i> Capacity Settings</h3>
+                    <button onclick="closeModal('accomSettingsModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                <div class="p-4 sm:p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1">
+                    <div>
+                        <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Max Male Rooms</label>
+                        <input type="number" id="adminMaleRooms" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Max Female Rooms</label>
+                        <input type="number" id="adminFemaleRooms" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Persons Per Room</label>
+                        <input type="number" id="adminPerRoom" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+                    <button onclick="window.saveAccomSettings()" class="w-full py-3 mt-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-[0_0_15px_rgba(37,99,235,0.4)]">Save Configuration</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="adminReplyModal" class="fixed inset-0 z-[150] hidden items-center justify-center p-4 sm:p-6">
+            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('adminReplyModal')"></div>
+            <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-xl bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
+                <style>
+                    [contenteditable="true"]:empty::before { content: attr(placeholder); color: #71717a; cursor: text; display: block; }
+                    .rich-editor-content ul { list-style-type: disc; padding-left: 1.5rem; margin-top: 0.25rem; margin-bottom: 0.25rem; }
+                    .rich-editor-content b { font-weight: bold; }
+                    .rich-editor-content i { font-style: italic; }
+                    .rich-editor-content u { text-decoration: underline; }
+                </style>
+                <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0 gap-4">
+                    <h3 class="text-lg sm:text-xl font-bold text-white flex-1 min-w-0 truncate break-words">Compose Reply</h3>
+                    <button onclick="closeModal('adminReplyModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
+                </div>
+                <div class="p-4 sm:p-6 overflow-y-auto w-full custom-scrollbar flex-1 min-h-0 flex flex-col gap-3">
+                    <div class="flex items-center gap-2 text-xs text-zinc-400 bg-black/30 p-2 rounded-lg border border-white/5"><span class="font-bold w-14 shrink-0">To:</span> <span id="adminReplyTargetEmail" class="text-white break-all"></span></div>
+                    <div class="flex items-center gap-2 text-xs text-zinc-400 bg-black/30 p-2 rounded-lg border border-white/5"><span class="font-bold w-14 shrink-0">Subject:</span> <input type="text" id="adminReplySubject" class="bg-transparent border-none outline-none text-white w-full" placeholder="Re: Your Inquiry"></div>
+                    <div class="flex items-start gap-2 text-xs text-zinc-400 bg-black/30 p-2 rounded-lg border border-white/5">
+                        <span class="font-bold w-14 shrink-0 pt-2">Attach:</span>
+                        <div class="w-full flex flex-col gap-2">
+                            <input type="text" id="adminReplyLinks" class="bg-transparent border-white/10 border-b outline-none text-white w-full pb-2" placeholder="Paste links (Drive, WhatsApp, etc.)">
+                            <input type="file" id="adminReplyFiles" multiple class="w-full text-[10px] text-zinc-400 file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700 cursor-pointer outline-none mt-1">
+                        </div>
+                    </div>
+                    <div class="w-full flex-1 flex flex-col bg-black/40 border border-white/10 rounded-xl shadow-inner mt-1 overflow-hidden min-h-[160px]">
+                        <div class="flex items-center gap-1 p-2 border-b border-white/10 bg-black/60 shrink-0 overflow-x-auto custom-scrollbar">
+                            <button type="button" onclick="document.execCommand('bold', false, null)" class="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded transition" title="Bold"><i data-lucide="bold" class="w-4 h-4"></i></button>
+                            <button type="button" onclick="document.execCommand('italic', false, null)" class="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded transition" title="Italic"><i data-lucide="italic" class="w-4 h-4"></i></button>
+                            <button type="button" onclick="document.execCommand('underline', false, null)" class="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded transition" title="Underline"><i data-lucide="underline" class="w-4 h-4"></i></button>
+                            <div class="w-px h-4 bg-white/10 mx-1"></div>
+                            <button type="button" onclick="document.execCommand('insertUnorderedList', false, null)" class="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded transition" title="Bullet List"><i data-lucide="list" class="w-4 h-4"></i></button>
+                        </div>
+                        <div id="adminReplyMessage" contenteditable="true" placeholder="Type your formatted email response here..." class="rich-editor-content flex-1 p-3 sm:p-4 text-white text-xs sm:text-sm focus:outline-none overflow-y-auto w-full break-words"></div>
+                    </div>
+                    <button onclick="window.executeAdminReply()" class="w-full py-3 sm:py-3.5 mt-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition shadow-[0_0_15px_rgba(37,99,235,0.4)] flex justify-center items-center gap-2 shrink-0"><i data-lucide="send" class="w-4 h-4"></i> Send Email & Update Status</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="sponsorModal" class="fixed inset-0 z-[120] hidden items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('sponsorModal')"></div>
+            <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
+                <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0 gap-4">
+                    <h3 class="text-lg sm:text-xl font-bold text-white flex-1 min-w-0 truncate break-words">Sponsor Application</h3>
+                    <button onclick="closeModal('sponsorModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
+                </div>
+                <div class="overflow-y-auto w-full flex-1 min-h-0 custom-scrollbar">
+                    <form onsubmit="event.preventDefault(); submitSponsorFo                <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0 gap-4">
                     <h3 class="text-lg sm:text-xl font-bold text-white flex-1 min-w-0 truncate break-words">Assign Role</h3>
                     <button onclick="closeModal('adminAddUserModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
