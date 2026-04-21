@@ -526,6 +526,10 @@ window.submitGalleryUpload = async function() {
     let eventId = eventSelect.value !== 'other' ? eventSelect.value : null;
     let captionData = document.getElementById('upload-context').value.trim();
 
+    if (eventId !== null) {
+        eventName = eventSelect.options[eventSelect.selectedIndex].text;
+    }
+
     if(window.galleryUploadType === 'link') {
         linkData = document.getElementById('galLink').value.trim();
     } else {
@@ -550,14 +554,17 @@ window.submitGalleryUpload = async function() {
         return;
     }
 
+    let finalCaption = captionData;
+    if (eventId === null) {
+        finalCaption = captionData + "$" + eventName;
+    }
+
     const data = {
         id: "gal_" + Date.now().toString(),
         url: linkData,
         eventId: eventId,
-        event: eventName, 
-        caption: captionData,
+        caption: finalCaption,
         userId: window.userProfile.accountId,
-        user: window.userProfile.name, 
         status: 'Pending',
         tags: `${eventName} ${captionData} ${window.userProfile.name}`.toLowerCase(),
         likes: 0
@@ -637,7 +644,31 @@ window.DatabaseAPI = {
                 }
             } catch(e) {}
         }
-        return [...this._data[collection] || []]; 
+        
+        let results = [...this._data[collection] || []];
+        
+        if (collection === 'gallery') {
+            const allEvents = Object.values(window.EVENTS_DATA || {}).flat();
+            results = results.map(g => {
+                let mapped = { ...g };
+                const u = this._data.users?.find(user => user.id === g.userId);
+                mapped.user = u ? u.name : g.userId;
+                
+                if (g.eventId) {
+                    const ev = allEvents.find(e => e.id === g.eventId);
+                    mapped.event = ev ? ev.name : 'Unknown Event';
+                } else if (g.caption && g.caption.includes('$')) {
+                    const parts = g.caption.split('$');
+                    mapped.event = parts.pop();
+                    mapped.caption = parts.join('$');
+                } else {
+                    mapped.event = 'Other Event';
+                }
+                return mapped;
+            });
+        }
+        
+        return results; 
     },
     
     async add(collection, item) {
@@ -681,6 +712,15 @@ window.DatabaseAPI = {
         
         const mappedData = data.map(row => {
             let newRow = { ...row }; 
+            
+            if (collectionName === 'gallery') {
+                if (!newRow.eventId && newRow.caption && newRow.caption.includes('$')) {
+                    const parts = newRow.caption.split('$');
+                    newRow.eventName = parts.pop();
+                    newRow.caption = parts.join('$');
+                }
+            }
+
             if (newRow.eventId) {
                 const foundEv = allEvents.find(e => e.id === newRow.eventId);
                 newRow.eventName = foundEv ? foundEv.name : newRow.eventId; 
