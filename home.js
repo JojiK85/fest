@@ -44,7 +44,7 @@ window.updateDynamicCalendar = function() {
                 else if(catKey==='online') emoji = "🎮";
                 else if(catKey==='entrepreneurial') emoji = "💼";
 
-                // Try to split the time out if the admin entered "Oct 20, 10:00 AM"
+                // Try to split the time out if the admin entered "Oct 20, 2026, 10:00 AM"
                 let extractedTime = "TBA";
                 if (ev.date && ev.date.includes(',')) {
                     extractedTime = ev.date.split(',')[1].trim();
@@ -156,52 +156,6 @@ window.openEventPopup = function(dateKey, index) {
         if(typeof window.openEventModal === 'function') window.openEventModal(fullCatKey, fullEvent.id); 
     } else { 
         if(typeof window.showMessage === 'function') window.showMessage("Detailed view not available."); 
-    }
-};
-
-function initFallingLeaves() {
-    const container = document.getElementById('heroLeaves');
-    if (!container) return;
-    const icons = ['🍁', '🍂', '🍃'];
-    for (let i = 0; i < 20; i++) {
-        const leaf = document.createElement('span');
-        leaf.className = 'leaf';
-        leaf.textContent = icons[i % 3];
-        leaf.style.left = Math.random() * 100 + '%';
-        leaf.style.fontSize = (14 + Math.random() * 20) + 'px';
-        leaf.style.animationDuration = (8 + Math.random() * 10) + 's';
-        leaf.style.animationDelay = (Math.random() * 8) + 's';
-        leaf.style.opacity = Math.random() * 0.3 + 0.1;
-        leaf.style.textShadow = '0 0 10px rgba(244, 63, 94, 0.4)';
-        container.appendChild(leaf);
-    }
-}        return;
-    }
-    
-    container.innerHTML = "";
-    events.forEach((ev, index) => {
-        container.innerHTML += `
-            <div onclick="openEventPopup('${dateKey}', ${index})" class="group p-4 rounded-2xl bg-black/40 border border-white/5 hover:border-white/20 transition-all cursor-pointer flex items-center gap-4">
-                <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-xl group-hover:scale-110 transition">${ev.emoji}</div>
-                <div><h4 class="font-bold text-white">${ev.title}</h4><p class="text-xs text-zinc-400">${ev.time} • ${ev.location}</p></div>
-            </div>`;
-    });
-};
-
-window.openEventPopup = function(dateKey, index) {
-    const calEvent = calendarEvents[dateKey][index];
-    let fullEvent = null, fullCatKey = null;
-    
-    for (const [catKey, events] of Object.entries(window.EVENTS_DATA || {})) {
-        const found = events.find(e => e.id === calEvent.id);
-        if (found) { fullEvent = found; fullCatKey = catKey; break; }
-    }
-    
-    if (fullEvent && fullCatKey) { 
-        // Calls the genuinely shared modal function sitting in shared.js
-        if(typeof openEventModal === 'function') openEventModal(fullCatKey, fullEvent.id); 
-    } else { 
-        if(typeof showMessage === 'function') showMessage("Detailed view not available."); 
     }
 };
 
