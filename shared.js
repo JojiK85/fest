@@ -1,4 +1,3 @@
-
 // ==========================================
 // 0. ANTI-FLICKER & INIT
 // ==========================================
@@ -107,101 +106,6 @@ window.injectSharedComponents = function() {
             <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('adminAddUserModal')"></div>
             <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
                 <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0 gap-4">
-                    <h3 class="text-lg sm:text-xl font-bold text-white flex-1 min-w-0 truncate break-words">Assign Role</h3>
-                    <button onclick="closeModal('adminAddUserModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>
-                </div>
-                <div class="p-4 sm:p-6 overflow-y-auto w-full custom-scrollbar flex-1 min-h-0 flex flex-col gap-4">
-                    <div class="bg-black/40 p-4 rounded-xl border border-white/10">
-                        <h4 class="text-white font-bold text-sm mb-3">Pre-assign Individual</h4>
-                        <input type="email" id="newUserEmail" placeholder="User Email" class="w-full bg-black/60 border border-white/20 rounded-lg px-3 py-2 text-white text-xs sm:text-sm focus:border-blue-500 mb-3 outline-none">
-                        <select id="newUserRole" class="w-full bg-black/60 border border-white/20 rounded-lg px-3 py-2 text-white text-xs sm:text-sm focus:border-blue-500 mb-3 outline-none appearance-none">
-                            <option value="0">User (L0)</option><option value="1">Admin (L1)</option><option value="2">Super Admin (L2)</option><option value="3">Super Account (L3)</option>
-                        </select>
-                        <button onclick="adminAddSingleUser()" class="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold text-xs transition">Assign Role</button>
-                    </div>
-                    <div class="bg-black/40 p-4 rounded-xl border border-white/10">
-                        <h4 class="text-white font-bold text-sm mb-3">Bulk Pre-assign (CSV)</h4>
-                        <p class="text-[10px] text-zinc-400 mb-3 leading-relaxed">Upload a CSV with columns: <b>email, role</b>.<br>Roles: 0=User, 1=Admin, 2=SuperAdmin, 3=SuperAccount.</p>
-                        <input type="file" id="bulkRoleUpload" accept=".csv" class="w-full text-[10px] text-zinc-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 mb-3 cursor-pointer outline-none">
-                        <button onclick="adminBulkUploadUsers()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white font-bold text-xs transition">Upload & Process</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="accomSettingsModal" class="fixed inset-0 z-[160] hidden items-center justify-center p-4">
-            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('accomSettingsModal')"></div>
-            <div class="relative w-full max-h-[85dvh] max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-[fadeInSlide_0.3s_ease-out]">
-                <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0">
-                    <h3 class="text-lg font-bold text-white flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5 text-blue-400"></i> Capacity Settings</h3>
-                    <button onclick="closeModal('accomSettingsModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>
-                </div>
-                <div class="p-4 sm:p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1">
-                    <div>
-                        <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Max Male Rooms</label>
-                        <input type="number" id="adminMaleRooms" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Max Female Rooms</label>
-                        <input type="number" id="adminFemaleRooms" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] sm:text-xs text-zinc-500 font-bold uppercase mb-1">Persons Per Room</label>
-                        <input type="number" id="adminPerRoom" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500">
-                    </div>
-                    <button onclick="window.saveAccomSettings()" class="w-full py-3 mt-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-[0_0_15px_rgba(37,99,235,0.4)]">Save Configuration</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="adminReplyModal" class="fixed inset-0 z-[150] hidden items-center justify-center p-4 sm:p-6">
-            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('adminReplyModal')"></div>
-            <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-xl bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
-                <style>
-                    [contenteditable="true"]:empty::before { content: attr(placeholder); color: #71717a; cursor: text; display: block; }
-                    .rich-editor-content ul { list-style-type: disc; padding-left: 1.5rem; margin-top: 0.25rem; margin-bottom: 0.25rem; }
-                    .rich-editor-content b { font-weight: bold; }
-                    .rich-editor-content i { font-style: italic; }
-                    .rich-editor-content u { text-decoration: underline; }
-                </style>
-                <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0 gap-4">
-                    <h3 class="text-lg sm:text-xl font-bold text-white flex-1 min-w-0 truncate break-words">Compose Reply</h3>
-                    <button onclick="closeModal('adminReplyModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
-                </div>
-                <div class="p-4 sm:p-6 overflow-y-auto w-full custom-scrollbar flex-1 min-h-0 flex flex-col gap-3">
-                    <div class="flex items-center gap-2 text-xs text-zinc-400 bg-black/30 p-2 rounded-lg border border-white/5"><span class="font-bold w-14 shrink-0">To:</span> <span id="adminReplyTargetEmail" class="text-white break-all"></span></div>
-                    <div class="flex items-center gap-2 text-xs text-zinc-400 bg-black/30 p-2 rounded-lg border border-white/5"><span class="font-bold w-14 shrink-0">Subject:</span> <input type="text" id="adminReplySubject" class="bg-transparent border-none outline-none text-white w-full" placeholder="Re: Your Inquiry"></div>
-                    <div class="flex items-start gap-2 text-xs text-zinc-400 bg-black/30 p-2 rounded-lg border border-white/5">
-                        <span class="font-bold w-14 shrink-0 pt-2">Attach:</span>
-                        <div class="w-full flex flex-col gap-2">
-                            <input type="text" id="adminReplyLinks" class="bg-transparent border-white/10 border-b outline-none text-white w-full pb-2" placeholder="Paste links (Drive, WhatsApp, etc.)">
-                            <input type="file" id="adminReplyFiles" multiple class="w-full text-[10px] text-zinc-400 file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700 cursor-pointer outline-none mt-1">
-                        </div>
-                    </div>
-                    <div class="w-full flex-1 flex flex-col bg-black/40 border border-white/10 rounded-xl shadow-inner mt-1 overflow-hidden min-h-[160px]">
-                        <div class="flex items-center gap-1 p-2 border-b border-white/10 bg-black/60 shrink-0 overflow-x-auto custom-scrollbar">
-                            <button type="button" onclick="document.execCommand('bold', false, null)" class="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded transition" title="Bold"><i data-lucide="bold" class="w-4 h-4"></i></button>
-                            <button type="button" onclick="document.execCommand('italic', false, null)" class="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded transition" title="Italic"><i data-lucide="italic" class="w-4 h-4"></i></button>
-                            <button type="button" onclick="document.execCommand('underline', false, null)" class="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded transition" title="Underline"><i data-lucide="underline" class="w-4 h-4"></i></button>
-                            <div class="w-px h-4 bg-white/10 mx-1"></div>
-                            <button type="button" onclick="document.execCommand('insertUnorderedList', false, null)" class="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded transition" title="Bullet List"><i data-lucide="list" class="w-4 h-4"></i></button>
-                        </div>
-                        <div id="adminReplyMessage" contenteditable="true" placeholder="Type your formatted email response here..." class="rich-editor-content flex-1 p-3 sm:p-4 text-white text-xs sm:text-sm focus:outline-none overflow-y-auto w-full break-words"></div>
-                    </div>
-                    <button onclick="window.executeAdminReply()" class="w-full py-3 sm:py-3.5 mt-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition shadow-[0_0_15px_rgba(37,99,235,0.4)] flex justify-center items-center gap-2 shrink-0"><i data-lucide="send" class="w-4 h-4"></i> Send Email & Update Status</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="sponsorModal" class="fixed inset-0 z-[120] hidden items-center justify-center p-4">
-            <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('sponsorModal')"></div>
-            <div class="relative w-full max-h-[85dvh] sm:max-h-[90dvh] max-w-[calc(100vw-2rem)] sm:max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[fadeInSlide_0.3s_ease-out] flex flex-col">
-                <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0 gap-4">
-                    <h3 class="text-lg sm:text-xl font-bold text-white flex-1 min-w-0 truncate break-words">Sponsor Application</h3>
-                    <button onclick="closeModal('sponsorModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
-                </div>
-                <div class="overflow-y-auto w-full flex-1 min-h-0 custom-scrollbar">
-                    <form onsubmit="event.preventDefault(); submitSponsorFo                <div class="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0 gap-4">
                     <h3 class="text-lg sm:text-xl font-bold text-white flex-1 min-w-0 truncate break-words">Assign Role</h3>
                     <button onclick="closeModal('adminAddUserModal')" class="text-zinc-500 hover:text-white bg-zinc-800 p-1 rounded-full shrink-0"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
@@ -571,7 +475,8 @@ window.DatabaseAPI = {
     
     async _fetchWithTimeout(url, options = {}) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000); 
+        // INCREASED TIMEOUT: 45 seconds for Render cold starts
+        const timeoutId = setTimeout(() => controller.abort(), 45000); 
         try {
             const res = await fetch(url, { ...options, signal: controller.signal });
             clearTimeout(timeoutId);
@@ -602,7 +507,7 @@ window.DatabaseAPI = {
                 window.EVENTS_DATA = window.groupEventsData(this._data.events || []);
                 window.dispatchEvent(new CustomEvent('db-updated'));
             } catch (e) {
-                console.warn("Backend offline. Using local cache.");
+                console.warn("Backend offline or taking too long. Using cache.");
             }
         };
 
@@ -710,8 +615,14 @@ window.EVENTS_DATA = { entrepreneurial: [], tech: [], cultural: [], shows: [], o
 window.groupEventsData = function(dbEvents) {
     let grouped = { entrepreneurial: [], tech: [], cultural: [], shows: [], online: [], festivals: [] };
     dbEvents.forEach(ev => {
-        const cat = ev.category || 'tech';
-        if(grouped[cat]) grouped[cat].push(ev); else grouped[cat] = [ev];
+        // NORMALIZE CATEGORY: lowercase ensures it matches the object keys above
+        const cat = (ev.category || 'tech').toLowerCase();
+        if(grouped[cat]) {
+            grouped[cat].push(ev); 
+        } else {
+            // Fallback for unexpected categories
+            grouped[cat] = [ev];
+        }
     });
     return grouped;
 };
@@ -1495,6 +1406,12 @@ window.closeModal = function(modalId) {
   }
 };
 
+window.editTeam = function(eventId) {
+    window.currentModalEvent = Object.values(window.EVENTS_DATA).flat().find(e => e.id === eventId);
+    window.isEditingTeam = true; // Special flag to allow opening confirmed events
+    window.openRegisterModal();
+};
+
 window.openEventModal = function(catKey, evId) {
   const ev = window.EVENTS_DATA[catKey].find(e => e.id === evId);
   if (ev) {
@@ -1565,9 +1482,16 @@ window.openEventModal = function(catKey, evId) {
 };
 
 window.openRegisterModal = function() {
-  if (window.festStatus !== 'active' || window.currentModalEvent.status === 'closed') {
+  if (!window.isEditingTeam && (window.festStatus !== 'active' || window.currentModalEvent.status === 'closed')) {
     window.showMessage("Registrations are closed for this event.");
     return;
+  }
+
+  // Prevent duplicate registration unless we are explicitly editing an existing team
+  let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
+  if (reg && reg.payment === 'Success' && !window.isEditingTeam) {
+      window.showMessage("You have already registered for this event!");
+      return;
   }
 
   window.closeModal('eventModal');
@@ -1584,7 +1508,6 @@ window.openRegisterModal = function() {
     window.currentRegMax = parseInt(teamStr);
   }
 
-  window.teamMemberCount = 1;
   window.regMode = 'create';
   document.getElementById('regEventName').innerText = ev.name;
   document.getElementById('regTotalFee').innerText = `₹${ev.fee}`;
@@ -1603,6 +1526,8 @@ window.openRegisterModal = function() {
 
   window.openModal('registerModal');
   window.renderIcons();
+  
+  window.isEditingTeam = false; // Reset flag
 };
 
 window.setRegMode = function(mode) {
@@ -1663,99 +1588,114 @@ window.confirmTeamName = function() {
 
 window.renderTeamBuildSection = function(code) {
   const container = document.getElementById('regFormContainer');
-  if(container) {
-      container.innerHTML = `
-          <div class="mb-4 sm:mb-6 animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow flex flex-col min-w-0">
-              <div class="bg-cyan-500/10 border border-cyan-500/30 rounded-2xl p-4 sm:p-5 mb-4 sm:mb-6 text-center shadow-inner w-full min-w-0"><p class="text-xs sm:text-sm text-cyan-400 uppercase tracking-widest font-bold mb-1 truncate">Your Team Code</p><p class="text-xl sm:text-3xl font-mono font-bold text-white tracking-[0.1em] sm:tracking-[0.2em] break-words">${code}</p></div>
-              <div class="mb-3 sm:mb-4 flex justify-between items-center border-b border-zinc-800 pb-2 gap-2 w-full min-w-0"><label class="block text-[9px] sm:text-[10px] uppercase text-zinc-500 font-bold ml-1 flex-1 truncate">Invite Members</label><span class="text-[10px] sm:text-xs text-zinc-400 font-bold shrink-0"><span id="memCountText">1</span> / ${window.currentRegMax}</span></div>
-              <div id="teamMembersList" class="space-y-2 sm:space-y-3 mb-4 w-full min-w-0">
-                  <div class="bg-zinc-900/50 border border-rose-500/30 rounded-xl p-3 sm:p-4 flex items-center justify-between shadow-inner w-full min-w-0">
-                      <div class="flex items-center gap-3 sm:gap-4 w-full min-w-0">
-                          <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0"><i data-lucide="crown" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>
-                          <div class="min-w-0 flex-grow"><p class="text-xs sm:text-sm text-white font-bold truncate">You (Leader)</p></div>
-                      </div>
+  if(!container) return;
+
+  let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
+  if(!reg) return;
+
+  let acceptedCount = 1; // Leader always counts
+  if (reg.members) {
+      reg.members.forEach(m => { 
+          if(m && !m.startsWith('Invited:') && m !== 'Pending') acceptedCount++; 
+      });
+  }
+  
+  window.teamMemberCount = 1 + (reg.members ? reg.members.length : 0);
+  let isPaid = reg.payment === 'Success';
+  let canPay = acceptedCount >= window.currentRegMin;
+  
+  let payBtnText = isPaid ? 'Save & Close' : (canPay ? 'Pay Now' : `Need ${window.currentRegMin - acceptedCount} more accepted members`);
+  let btnClass = (isPaid || canPay) ? 'bg-blue-600 hover:bg-blue-500' : 'bg-zinc-600 cursor-not-allowed';
+
+  let membersHtml = '';
+  if (reg.members) {
+      reg.members.forEach((mId, index) => {
+          let isAccepted = mId && !mId.startsWith('Invited:') && mId !== 'Pending';
+          let displayVal = mId;
+          if (mId.startsWith('Invited:')) displayVal = "Invited: " + mId.substring(8);
+          if (mId === 'Pending') displayVal = ""; 
+
+          // Prevent dropping below minimum if already paid
+          let canRemove = true;
+          if (isPaid && isAccepted && acceptedCount <= window.currentRegMin) {
+              canRemove = false;
+          }
+
+          membersHtml += `
+              <div id="member-row-${index}" class="flex items-center gap-2 sm:gap-3 animate-[fadeInSlide_0.2s_ease-out] w-full min-w-0 mt-2">
+                  <input type="text" id="input-member-${index}" placeholder="Email or Account ID" value="${displayVal}" class="team-member-input flex-grow min-w-0 py-3 sm:py-4 bg-black/40 border border-white/10 rounded-xl px-4 text-xs sm:text-sm focus:outline-none focus:border-rose-500 shadow-inner ${isAccepted ? 'text-emerald-400' : 'text-white'}" ${isAccepted || mId.startsWith('Invited:') ? 'readonly' : ''} onchange="window.saveTeamMembers()">
+                  
+                  ${!isAccepted && !mId.startsWith('Invited:') ? `<button type="button" onclick="window.sendTeamInvite('input-member-${index}', ${index})" class="w-12 h-12 sm:w-[52px] sm:h-[52px] bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl flex items-center justify-center shrink-0 transition" title="Send App Invite & Email"><i data-lucide="user-plus" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>` : ''}
+                  
+                  ${isAccepted ? `<span class="text-xs text-emerald-500 font-bold px-2 shrink-0">Joined</span>` : (mId.startsWith('Invited:') ? `<span class="text-xs text-amber-500 font-bold px-2 shrink-0">Pending</span>` : '')}
+
+                  ${canRemove ? `<button type="button" onclick="window.removeTeamMemberField(${index})" class="w-12 h-12 sm:w-[52px] sm:h-[52px] bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl flex items-center justify-center shrink-0 transition"><i data-lucide="trash-2" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>` : `<div class="w-12 h-12 sm:w-[52px] sm:h-[52px] flex items-center justify-center shrink-0"><i data-lucide="lock" class="w-4 h-4 text-zinc-600" title="Cannot remove below min size"></i></div>`}
+              </div>
+          `;
+      });
+  }
+
+  container.innerHTML = `
+      <div class="mb-4 sm:mb-6 animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow flex flex-col min-w-0">
+          <div class="bg-cyan-500/10 border border-cyan-500/30 rounded-2xl p-4 sm:p-5 mb-4 sm:mb-6 text-center shadow-inner w-full min-w-0"><p class="text-xs sm:text-sm text-cyan-400 uppercase tracking-widest font-bold mb-1 truncate">Your Team Code</p><p class="text-xl sm:text-3xl font-mono font-bold text-white tracking-[0.1em] sm:tracking-[0.2em] break-words">${code}</p></div>
+          <div class="mb-3 sm:mb-4 flex justify-between items-center border-b border-zinc-800 pb-2 gap-2 w-full min-w-0"><label class="block text-[9px] sm:text-[10px] uppercase text-zinc-500 font-bold ml-1 flex-1 truncate">Invite Members</label><span class="text-[10px] sm:text-xs text-zinc-400 font-bold shrink-0"><span>${window.teamMemberCount}</span> / ${window.currentRegMax}</span></div>
+          <div id="teamMembersList" class="mb-4 w-full min-w-0">
+              <div class="bg-zinc-900/50 border border-rose-500/30 rounded-xl p-3 sm:p-4 flex items-center justify-between shadow-inner w-full min-w-0">
+                  <div class="flex items-center gap-3 sm:gap-4 w-full min-w-0">
+                      <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0"><i data-lucide="crown" class="w-4 h-4 sm:w-5 sm:h-5"></i></div>
+                      <div class="min-w-0 flex-grow"><p class="text-xs sm:text-sm text-white font-bold truncate">You (Leader)</p></div>
+                      <span class="text-xs text-emerald-500 font-bold px-2 shrink-0">Joined</span>
                   </div>
               </div>
-              <button type="button" id="addMemberBtn" onclick="window.addTeamMemberField(true)" class="mt-4 w-full py-3 sm:py-4 rounded-xl border border-dashed border-zinc-600 text-zinc-400 hover:text-white hover:border-zinc-400 transition flex items-center justify-center gap-2 text-xs sm:text-sm font-medium shrink-0"><i data-lucide="plus" class="w-4 h-4 shrink-0"></i> <span class="truncate">Add Teammate by ID / Email</span></button>
-          </div>`;
-  }
+              ${membersHtml}
+          </div>
+          <button type="button" onclick="window.addTeamMemberField()" class="mt-2 w-full py-3 sm:py-4 rounded-xl border border-dashed border-zinc-600 text-zinc-400 hover:text-white hover:border-zinc-400 transition flex items-center justify-center gap-2 text-xs sm:text-sm font-medium shrink-0" style="display: ${window.teamMemberCount >= window.currentRegMax ? 'none' : 'flex'}"><i data-lucide="plus" class="w-4 h-4 shrink-0"></i> <span class="truncate">Add Teammate Slot</span></button>
+      </div>`;
+
   const footBtns = document.getElementById('regFooterBtns');
-  if(footBtns) footBtns.innerHTML = `<button onclick="window.processPayment()" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(37,99,235,0.4)] text-center shrink-0">Pay Now</button>`;
-  window.teamMemberCount = 1;
-  const reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
-  if (reg && reg.members.length > 0) {
-    reg.members.forEach((mId) => {
-      if (window.teamMemberCount < window.currentRegMax) window.addTeamMemberField(false, mId);
-    });
-  } else {
-    if(typeof window.updateMemberCount === 'function') window.updateMemberCount();
+  if(footBtns) {
+      footBtns.innerHTML = `<button onclick="${isPaid ? 'window.closeAndSaveTeam()' : 'window.processPayment()'}" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl ${btnClass} text-white font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(37,99,235,0.4)] text-center shrink-0" ${isPaid || canPay ? '' : 'disabled'}>${payBtnText}</button>`;
   }
   window.renderIcons();
 };
 
-window.renderJoinForm = function() {
-  const container = document.getElementById('regFormContainer');
-  if(container) {
-      container.innerHTML = `
-          <form id="joinTeamForm" onsubmit="event.preventDefault(); window.processJoinTeam();" class="flex flex-col items-center justify-start py-6 sm:py-10 mt-2 sm:mt-6 text-center animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow min-w-0">
-              <div class="w-16 h-16 sm:w-20 sm:h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-4 sm:mb-6 shrink-0 shadow-inner"><i data-lucide="key" class="w-8 h-8 sm:w-10 sm:h-10 text-amber-500"></i></div>
-              <h4 class="text-xl sm:text-2xl font-black text-white mb-3 font-sans tracking-wide w-full break-words">Join a Team</h4>
-              <p class="text-xs sm:text-sm text-zinc-400 max-w-xs mx-auto mb-6 break-words w-full">Enter the team code provided by your team leader.</p>
-              <input type="text" id="joinTeamInput" class="w-full max-w-sm bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-center font-mono text-sm sm:text-lg tracking-[0.1em] sm:tracking-[0.2em] focus:outline-none focus:border-amber-500 shadow-inner transition min-w-0" placeholder="AUT-TEAM-XXXX" required>
-          </form>`;
-  }
-  const footBtns = document.getElementById('regFooterBtns');
-  if(footBtns) footBtns.innerHTML = `<button type="submit" form="joinTeamForm" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(245,158,11,0.4)] text-center shrink-0">Join Team</button>`;
-  window.renderIcons();
+window.closeAndSaveTeam = async function() {
+    let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
+    if (reg) {
+        await window.DatabaseAPI.update('registrations', reg.id, { members: reg.members });
+    }
+    window.closeModal('registerModal');
+    if(typeof window.renderProfile === 'function') window.renderProfile();
 };
 
-window.renderIndividualForm = function() {
-  const container = document.getElementById('regFormContainer');
-  if(container) {
-      container.innerHTML = `
-          <div class="flex flex-col items-center justify-start py-8 sm:py-10 text-center animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow min-w-0">
-              <div class="w-20 h-20 sm:w-24 sm:h-24 bg-blue-500/10 rounded-full flex items-center justify-center mb-6 shrink-0 shadow-inner">
-                  <i data-lucide="user" class="w-10 h-10 sm:w-12 sm:h-12 text-blue-500"></i>
-              </div>
-              <h4 class="text-2xl sm:text-3xl font-black text-white mb-3 tracking-wide font-sans w-full break-words">Individual Registration</h4>
-              <p class="text-xs sm:text-sm text-zinc-400 max-w-sm mx-auto break-words w-full">You are registering as an individual. Proceed to pay the fee and confirm your spot.</p>
-          </div>`;
-  }
-  const footBtns = document.getElementById('regFooterBtns');
-  if(footBtns) footBtns.innerHTML = `<button onclick="window.processPayment()" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(37,99,235,0.4)] text-center shrink-0">Pay Now</button>`;
-  window.renderIcons();
+window.addTeamMemberField = function() {
+    if (window.teamMemberCount >= window.currentRegMax) { window.showMessage(`Max size ${window.currentRegMax}.`); return; }
+    
+    let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
+    if (reg) {
+        if (!reg.members) reg.members = [];
+        reg.members.push('Pending');
+        window.saveCache();
+        window.renderTeamBuildSection(reg.teamCode); 
+    }
 };
 
-window.addTeamMemberField = function(pushToArray = true, initialValue = "") {
-  if (window.teamMemberCount >= window.currentRegMax) { window.showMessage(`Max size ${window.currentRegMax}.`); return; }
-  window.teamMemberCount++;
-
-  const id = `member-${window.teamMemberCount}`;
-  const displayVal = initialValue !== "Pending" ? initialValue : "";
-
-  const div = document.createElement('div');
-  div.id = id; div.className = 'flex items-center gap-2 sm:gap-3 animate-[fadeInSlide_0.2s_ease-out] w-full min-w-0';
-  div.innerHTML = `
-      <input type="text" id="input-${id}" placeholder="Email or Account ID" value="${displayVal}" class="team-member-input flex-grow min-w-0 py-3 sm:py-4 bg-black/40 border border-white/10 rounded-xl text-white px-4 text-xs sm:text-sm focus:outline-none focus:border-rose-500 shadow-inner" required onchange="window.saveTeamMembers()">
-      <button type="button" onclick="window.sendTeamInvite('input-${id}')" class="w-12 h-12 sm:w-[52px] sm:h-[52px] bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl flex items-center justify-center shrink-0 transition" title="Send App Invite"><i data-lucide="user-plus" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
-      <button type="button" onclick="window.removeTeamMemberField('${id}')" class="w-12 h-12 sm:w-[52px] sm:h-[52px] bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl flex items-center justify-center shrink-0 transition"><i data-lucide="trash-2" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>`;
-  
-  const list = document.getElementById('teamMembersList');
-  if(list) list.appendChild(div);
-
-  if (pushToArray) window.saveTeamMembers();
-  window.updateMemberCount();
-  window.renderIcons();
+window.removeTeamMemberField = function(index) {
+    let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
+    if (reg && reg.members) {
+        reg.members.splice(index, 1);
+        window.saveCache();
+        
+        // If paid, immediately push delete to DB
+        if (reg.payment === 'Success') {
+            window.DatabaseAPI.update('registrations', reg.id, { members: reg.members });
+        }
+        
+        window.renderTeamBuildSection(reg.teamCode);
+    }
 };
 
-window.updateMemberCount = function() {
-  const memCountText = document.getElementById('memCountText');
-  if(memCountText) memCountText.innerText = window.teamMemberCount;
-  const addBtn = document.getElementById('addMemberBtn');
-  if (addBtn) addBtn.style.display = window.teamMemberCount >= window.currentRegMax ? 'none' : 'flex';
-};
-
-window.sendTeamInvite = async function(inputId) {
+window.sendTeamInvite = async function(inputId, index) {
     const inputEl = document.getElementById(inputId);
     if (!inputEl || !inputEl.value) {
         window.showMessage("Please enter an email or Account ID to invite.");
@@ -1768,9 +1708,14 @@ window.sendTeamInvite = async function(inputId) {
 
     if (!targetUser) return showMessage("User not found. They must sign up for an account first.");
 
-    const reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
+    let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
     if (!reg) return;
 
+    if (reg.members.includes(targetUser.id) || reg.members.includes(`Invited:${targetUser.id}`)) {
+        return window.showMessage("User is already in the team or already invited.");
+    }
+
+    // App Notification
     await window.DatabaseAPI.add('notifications', {
         id: "notif_" + Date.now().toString(),
         userId: targetUser.id,
@@ -1783,9 +1728,29 @@ window.sendTeamInvite = async function(inputId) {
         relatedId: reg.teamCode
     });
 
-    inputEl.value = targetUser.id;
-    window.saveTeamMembers();
-    showMessage(`Invite sent to ${targetUser.name}! They can accept it in their notifications.`);
+    // Send Email to Invitee
+    try {
+        await fetch(`${window.BASE_URL}/send-mail`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subject: `Team Invite: ${reg.teamName}`,
+                body: `Hello ${targetUser.name},<br><br>${window.userProfile.name} has invited you to join their team for <b>${window.currentModalEvent.name}</b>.<br><br>Please click the link below to log in and accept your invite in the notifications tab:<br><a href="https://fest-amber.vercel.app/" style="color:#f43f5e;font-weight:bold;">Accept Invite on Autumn Fest</a><br><br>Best Regards,<br>Events Team`,
+                recipients: [{ email: targetUser.email, name: targetUser.name }]
+            })
+        });
+    } catch(e) { console.error("Invite email failed", e); }
+
+    // Lock the slot as an Active Invite
+    reg.members[index] = `Invited:${targetUser.id}`;
+    window.saveCache();
+    
+    if (reg.payment === 'Success') {
+        await window.DatabaseAPI.update('registrations', reg.id, { members: reg.members });
+    }
+
+    window.renderTeamBuildSection(reg.teamCode);
+    showMessage(`Invite sent to ${targetUser.name}! They must accept it to continue.`);
 };
 
 window.acceptTeamInvite = async function(teamCode, notifId) {
@@ -1802,7 +1767,7 @@ window.acceptTeamInvite = async function(teamCode, notifId) {
     const event = Object.values(window.EVENTS_DATA).flat().find(e => e.id === targetReg.eventId);
     const maxMembers = event.team.includes('-') ? parseInt(event.team.split('-')[1]) : parseInt(event.team);
 
-    if (targetReg.members.length + 1 >= maxMembers) {
+    if (targetReg.members.length >= maxMembers && !targetReg.members.includes(`Invited:${window.userProfile.accountId}`)) {
         showMessage("Sorry, this team is already full!");
         await window.DatabaseAPI.delete('notifications', notifId);
         window.openNotifications();
@@ -1810,11 +1775,18 @@ window.acceptTeamInvite = async function(teamCode, notifId) {
     }
 
     if (!targetReg.members.includes(window.userProfile.accountId) && targetReg.leader !== window.userProfile.accountId) {
-        let pendingIdx = targetReg.members.findIndex(m => m === 'Pending');
-        if(pendingIdx > -1) {
-            targetReg.members[pendingIdx] = window.userProfile.accountId;
+        // Find their specific invite slot
+        let inviteIdx = targetReg.members.findIndex(m => m === `Invited:${window.userProfile.accountId}`);
+        if (inviteIdx > -1) {
+            targetReg.members[inviteIdx] = window.userProfile.accountId;
         } else {
-            targetReg.members.push(window.userProfile.accountId);
+            // Fallback for legacy generic invites
+            let pendingIdx = targetReg.members.findIndex(m => m === 'Pending');
+            if(pendingIdx > -1) {
+                targetReg.members[pendingIdx] = window.userProfile.accountId;
+            } else {
+                targetReg.members.push(window.userProfile.accountId);
+            }
         }
         await window.DatabaseAPI.update('registrations', targetReg.id, { members: targetReg.members });
     }
@@ -1834,17 +1806,13 @@ window.saveTeamMembers = function() {
   let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
   if (reg) {
     const inputs = document.querySelectorAll('.team-member-input');
-    reg.members = Array.from(inputs).map(inp => inp.value.trim() || 'Pending');
+    // Only update slots that are generic pending. Do not override Invited: string or accepted IDs.
+    inputs.forEach((inp, idx) => {
+        if (!inp.readOnly) {
+            reg.members[idx] = inp.value.trim() ? inp.value.trim() : 'Pending';
+        }
+    });
     window.saveCache();
-  }
-};
-
-window.removeTeamMemberField = function(id) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.remove(); window.teamMemberCount--;
-    window.saveTeamMembers();
-    window.updateMemberCount();
   }
 };
 
@@ -1948,17 +1916,27 @@ window.processRazorpayPayment = function(amount, successMsg, callback) {
 };
 
 window.processPayment = function() {
-  if (window.currentRegMax > 1 && window.regMode === 'create' && window.teamMemberCount < window.currentRegMin) { 
-      window.showMessage(`Minimum ${window.currentRegMin} members required!`); return; 
+  let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
+  
+  // Calculate truly accepted members
+  let acceptedCount = 1;
+  if (reg && reg.members) {
+      reg.members.forEach(m => { 
+          if(m && !m.startsWith('Invited:') && m !== 'Pending') acceptedCount++; 
+      });
+  }
+
+  if (window.currentRegMax > 1 && window.regMode === 'create' && acceptedCount < window.currentRegMin) { 
+      window.showMessage(`Minimum ${window.currentRegMin} accepted members required to pay!`); 
+      return; 
   }
 
   window.processRazorpayPayment(window.currentPendingFee, "Payment Successful! Registration complete.", async (payId) => {
-    let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
     if (!reg) { 
         reg = { eventId: window.currentModalEvent.id, teamName: 'Individual', teamCode: null, members: [], payment: 'Success' }; 
         window.userProfile.registrations.push(reg); 
     } else { 
-        reg.payment = 'Success'; window.saveTeamMembers(); 
+        reg.payment = 'Success'; 
     }
 
     const regData = {
