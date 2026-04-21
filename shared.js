@@ -367,7 +367,13 @@ window.injectSharedComponents = function() {
                     <input type="url" id="galLink" class="hidden w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 sm:py-3 text-white text-xs sm:text-sm focus:outline-none focus:border-rose-500 mb-4" placeholder="https://drive.google.com/...">
                     <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-xl mb-4">
                         <p class="text-indigo-400 text-[10px] font-bold mb-2 uppercase tracking-wider flex items-center gap-1"><i data-lucide="tag" class="w-3 h-3"></i> Event Name / Caption</p>
-                        <input type="text" id="upload-event-name" placeholder="e.g., Starnite Concert" class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-xs sm:text-sm focus:outline-none focus:border-indigo-500 mb-3">
+                        
+                        <select id="upload-event-select" onchange="window.toggleGalleryEventInput()" class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-xs sm:text-sm focus:outline-none focus:border-indigo-500 mb-2 appearance-none">
+                            <option value="" disabled selected>Select Event...</option>
+                            <option value="other">Other (Type Name)</option>
+                        </select>
+                        <input type="text" id="upload-event-name" placeholder="Type event / photo name..." class="hidden w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-xs sm:text-sm focus:outline-none focus:border-indigo-500 mb-3">
+                        
                         <p class="text-indigo-400 text-[10px] font-bold mb-2 uppercase tracking-wider flex items-center gap-1"><i data-lucide="align-left" class="w-3 h-3"></i> Context / Description</p>
                         <input type="text" id="upload-context" placeholder="A fun description..." class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-xs sm:text-sm focus:outline-none focus:border-indigo-500 mb-3">
                     </div>
@@ -461,6 +467,36 @@ window.injectSharedComponents = function() {
     document.body.appendChild(rzpScript);
     
     window.renderIcons(); 
+};
+
+window.toggleGalleryEventInput = function() {
+    const select = document.getElementById('upload-event-select');
+    const input = document.getElementById('upload-event-name');
+    if (!select || !input) return;
+    
+    if (select.value === 'other') {
+        input.classList.remove('hidden');
+        input.value = '';
+    } else {
+        input.classList.add('hidden');
+        input.value = select.options[select.selectedIndex].text;
+    }
+};
+
+window.populateGalleryEvents = function() {
+    const select = document.getElementById('upload-event-select');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="" disabled selected>Select Event...</option>';
+    if (window.EVENTS_DATA) {
+        Object.values(window.EVENTS_DATA).flat().forEach(ev => {
+            const opt = document.createElement('option');
+            opt.value = ev.id;
+            opt.textContent = ev.name;
+            select.appendChild(opt);
+        });
+    }
+    select.insertAdjacentHTML('beforeend', '<option value="other">Other (Type Name)</option>');
 };
 
 // ==========================================
@@ -782,6 +818,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (forgotBtn) forgotBtn.onclick = () => { if(typeof window.triggerForgotPassword === 'function') window.triggerForgotPassword(); };
 
     window.addEventListener('db-updated', async () => {
+        if (typeof window.populateGalleryEvents === 'function') window.populateGalleryEvents();
         if (!window.isLoggedIn) return;
         if (typeof window.updateAdminBadges === 'function') window.updateAdminBadges();
         if (typeof window.refreshNotificationBadges === 'function') window.refreshNotificationBadges();
@@ -1409,7 +1446,7 @@ window.closeModal = function(modalId) {
 
 window.editTeam = function(eventId) {
     window.currentModalEvent = Object.values(window.EVENTS_DATA).flat().find(e => e.id === eventId);
-    window.isEditingTeam = true; // Special flag to allow opening confirmed events
+    window.isEditingTeam = true; 
     window.openRegisterModal();
 };
 
@@ -1488,7 +1525,6 @@ window.openRegisterModal = function() {
     return;
   }
 
-  // Prevent duplicate registration unless we are explicitly editing an existing team
   let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
   if (reg && reg.payment === 'Success' && !window.isEditingTeam) {
       window.showMessage("You have already registered for this event!");
@@ -1528,7 +1564,7 @@ window.openRegisterModal = function() {
   window.openModal('registerModal');
   window.renderIcons();
   
-  window.isEditingTeam = false; // Reset flag
+  window.isEditingTeam = false; 
 };
 
 window.setRegMode = function(mode) {
@@ -1616,7 +1652,6 @@ window.renderTeamBuildSection = function(code) {
           if (mId.startsWith('Invited:')) displayVal = "Invited: " + mId.substring(8);
           if (mId === 'Pending') displayVal = ""; 
 
-          // Prevent dropping below minimum if already paid
           let canRemove = true;
           if (isPaid && isAccepted && acceptedCount <= window.currentRegMin) {
               canRemove = false;
@@ -1687,7 +1722,6 @@ window.removeTeamMemberField = function(index) {
         reg.members.splice(index, 1);
         window.saveCache();
         
-        // If paid, immediately push delete to DB
         if (reg.payment === 'Success') {
             window.DatabaseAPI.update('registrations', reg.id, { members: reg.members });
         }
@@ -1716,7 +1750,6 @@ window.sendTeamInvite = async function(inputId, index) {
         return window.showMessage("User is already in the team or already invited.");
     }
 
-    // App Notification
     await window.DatabaseAPI.add('notifications', {
         id: "notif_" + Date.now().toString(),
         userId: targetUser.id,
@@ -1729,7 +1762,6 @@ window.sendTeamInvite = async function(inputId, index) {
         relatedId: reg.teamCode
     });
 
-    // Send Email to Invitee
     try {
         await fetch(`${window.BASE_URL}/send-mail`, {
             method: 'POST',
@@ -1742,7 +1774,6 @@ window.sendTeamInvite = async function(inputId, index) {
         });
     } catch(e) { console.error("Invite email failed", e); }
 
-    // Lock the slot as an Active Invite
     reg.members[index] = `Invited:${targetUser.id}`;
     window.saveCache();
     
@@ -1776,12 +1807,10 @@ window.acceptTeamInvite = async function(teamCode, notifId) {
     }
 
     if (!targetReg.members.includes(window.userProfile.accountId) && targetReg.leader !== window.userProfile.accountId) {
-        // Find their specific invite slot
         let inviteIdx = targetReg.members.findIndex(m => m === `Invited:${window.userProfile.accountId}`);
         if (inviteIdx > -1) {
             targetReg.members[inviteIdx] = window.userProfile.accountId;
         } else {
-            // Fallback for legacy generic invites
             let pendingIdx = targetReg.members.findIndex(m => m === 'Pending');
             if(pendingIdx > -1) {
                 targetReg.members[pendingIdx] = window.userProfile.accountId;
@@ -1807,7 +1836,6 @@ window.saveTeamMembers = function() {
   let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
   if (reg) {
     const inputs = document.querySelectorAll('.team-member-input');
-    // Only update slots that are generic pending. Do not override Invited: string or accepted IDs.
     inputs.forEach((inp, idx) => {
         if (!inp.readOnly) {
             reg.members[idx] = inp.value.trim() ? inp.value.trim() : 'Pending';
@@ -1815,6 +1843,39 @@ window.saveTeamMembers = function() {
     });
     window.saveCache();
   }
+};
+
+window.renderJoinForm = function() {
+  const container = document.getElementById('regFormContainer');
+  if(container) {
+      container.innerHTML = `
+          <form id="joinTeamForm" onsubmit="event.preventDefault(); window.processJoinTeam();" class="flex flex-col items-center justify-start py-6 sm:py-10 mt-2 sm:mt-6 text-center animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow min-w-0">
+              <div class="w-16 h-16 sm:w-20 sm:h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-4 sm:mb-6 shrink-0 shadow-inner"><i data-lucide="key" class="w-8 h-8 sm:w-10 sm:h-10 text-amber-500"></i></div>
+              <h4 class="text-xl sm:text-2xl font-black text-white mb-3 font-sans tracking-wide w-full break-words">Join a Team</h4>
+              <p class="text-xs sm:text-sm text-zinc-400 max-w-xs mx-auto mb-6 break-words w-full">Enter the team code provided by your team leader.</p>
+              <input type="text" id="joinTeamInput" class="w-full max-w-sm bg-black/40 border border-white/10 rounded-xl px-4 py-3 sm:py-4 text-white text-center font-mono text-sm sm:text-lg tracking-[0.1em] sm:tracking-[0.2em] focus:outline-none focus:border-amber-500 shadow-inner transition min-w-0" placeholder="AUT-TEAM-XXXX" required>
+          </form>`;
+  }
+  const footBtns = document.getElementById('regFooterBtns');
+  if(footBtns) footBtns.innerHTML = `<button type="submit" form="joinTeamForm" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(245,158,11,0.4)] text-center shrink-0">Join Team</button>`;
+  window.renderIcons();
+};
+
+window.renderIndividualForm = function() {
+  const container = document.getElementById('regFormContainer');
+  if(container) {
+      container.innerHTML = `
+          <div class="flex flex-col items-center justify-start py-8 sm:py-10 text-center animate-[fadeInSlide_0.2s_ease-out] w-full flex-grow min-w-0">
+              <div class="w-20 h-20 sm:w-24 sm:h-24 bg-blue-500/10 rounded-full flex items-center justify-center mb-6 shrink-0 shadow-inner">
+                  <i data-lucide="user" class="w-10 h-10 sm:w-12 sm:h-12 text-blue-500"></i>
+              </div>
+              <h4 class="text-2xl sm:text-3xl font-black text-white mb-3 tracking-wide font-sans w-full break-words">Individual Registration</h4>
+              <p class="text-xs sm:text-sm text-zinc-400 max-w-sm mx-auto break-words w-full">You are registering as an individual. Proceed to pay the fee and confirm your spot.</p>
+          </div>`;
+  }
+  const footBtns = document.getElementById('regFooterBtns');
+  if(footBtns) footBtns.innerHTML = `<button onclick="window.processPayment()" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition text-xs sm:text-base shadow-[0_0_15px_rgba(37,99,235,0.4)] text-center shrink-0">Pay Now</button>`;
+  window.renderIcons();
 };
 
 window.initRazorpayMock = function(amount, successMsg, callback) {
@@ -1919,7 +1980,6 @@ window.processRazorpayPayment = function(amount, successMsg, callback) {
 window.processPayment = function() {
   let reg = window.userProfile.registrations.find(r => r.eventId === window.currentModalEvent.id);
   
-  // Calculate truly accepted members
   let acceptedCount = 1;
   if (reg && reg.members) {
       reg.members.forEach(m => { 
