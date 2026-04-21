@@ -588,6 +588,7 @@ window.DatabaseAPI = {
             };
 
             if (newRow.leader) { newRow.leaderName = resolveUser(newRow.leader); delete newRow.leader; }
+            if (newRow.userId) { newRow.userName = resolveUser(newRow.userId); delete newRow.userId; }
             if (newRow.user) { newRow.userName = resolveUser(newRow.user); delete newRow.user; }
             if (newRow.requested) { newRow.requestedNames = newRow.requested.split(',').map(id => resolveUser(id.trim())).join(' & '); delete newRow.requested; }
             if (newRow.members && Array.isArray(newRow.members)) { newRow.memberNames = newRow.members.map(id => resolveUser(id)).join(', '); delete newRow.members; }
@@ -860,7 +861,7 @@ window.populateUserProfile = async function(user) {
     ]);
 
     window.userProfile.registrations = regs.filter(r => r.leader === user.id || (r.members && r.members.includes(user.id)));
-    window.userProfile.payments = pays.filter(p => p.user === user.id);
+    window.userProfile.payments = pays.filter(p => p.userId === user.id || p.user === user.id);
     
     // Convert day mapping back into duration string for UI
     const accomData = accoms.find(a => a.id === user.id) || null;
@@ -1848,7 +1849,7 @@ window.confirmMockPayment = function() {
             amount: window.pendingRzpAmount,
             status: 'Success',
             timestamp: new Date().toLocaleString(),
-            user: window.userProfile.accountId
+            userId: window.userProfile.accountId
         };
         window.userProfile.payments.push(pData);
         await window.DatabaseAPI.add('payments', pData);
@@ -1887,7 +1888,7 @@ window.processRazorpayPayment = function(amount, successMsg, callback) {
                 amount: amount,
                 status: 'Success',
                 timestamp: new Date().toLocaleString(),
-                user: window.userProfile.accountId
+                userId: window.userProfile.accountId
             };
             window.userProfile.payments.push(pData);
             await window.DatabaseAPI.add('payments', pData);
