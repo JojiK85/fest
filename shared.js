@@ -499,6 +499,76 @@ window.populateGalleryEvents = function() {
     select.insertAdjacentHTML('beforeend', '<option value="other">Other (Type Name)</option>');
 };
 
+window.toggleGalleryUploadType = function(type) {
+    window.galleryUploadType = type;
+    const fileBtn = document.getElementById('btn-gal-file');
+    const linkBtn = document.getElementById('btn-gal-link');
+    const fileContainer = document.getElementById('gal-file-container');
+    const linkInput = document.getElementById('galLink');
+    
+    if (type === 'file') {
+        fileBtn.className = "flex-1 py-1.5 rounded bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider transition";
+        linkBtn.className = "flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700";
+        fileContainer.classList.remove('hidden');
+        linkInput.classList.add('hidden');
+    } else {
+        linkBtn.className = "flex-1 py-1.5 rounded bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider transition";
+        fileBtn.className = "flex-1 py-1.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-bold uppercase tracking-wider transition hover:bg-zinc-700";
+        linkInput.classList.remove('hidden');
+        fileContainer.classList.add('hidden');
+    }
+};
+
+window.submitGalleryUpload = async function() {
+    let linkData = "";
+    let eventName = document.getElementById('upload-event-name').value.trim();
+    const eventSelect = document.getElementById('upload-event-select');
+    let eventId = eventSelect.value !== 'other' ? eventSelect.value : null;
+    let captionData = document.getElementById('upload-context').value.trim();
+
+    if(window.galleryUploadType === 'link') {
+        linkData = document.getElementById('galLink').value.trim();
+    } else {
+        const fileInput = document.getElementById('galFile');
+        if(fileInput && fileInput.files.length > 0) {
+            if(typeof window.showMessage === 'function') window.showMessage("Uploading image to Drive... Please wait.");
+            try {
+                linkData = await window.uploadFileToDrive(fileInput.files[0]);
+            } catch(e) {
+                if(typeof window.showMessage === 'function') return window.showMessage(e.message);
+            }
+        }
+    }
+
+    if (!linkData) {
+        if(typeof window.showMessage === 'function') return window.showMessage("Please provide an image file or link.");
+        return;
+    }
+    
+    if (!eventName) {
+        if(typeof window.showMessage === 'function') return window.showMessage("Please select or specify an event name.");
+        return;
+    }
+
+    const data = {
+        id: "gal_" + Date.now().toString(),
+        url: linkData,
+        eventId: eventId,
+        event: eventName, 
+        caption: captionData,
+        userId: window.userProfile.accountId,
+        user: window.userProfile.name, 
+        status: 'Pending',
+        tags: `${eventName} ${captionData} ${window.userProfile.name}`.toLowerCase(),
+        likes: 0
+    };
+    
+    await window.DatabaseAPI.add('gallery', data);
+    
+    if(typeof window.closeModal === 'function') window.closeModal('uploadModal');
+    if(typeof window.showMessage === 'function') window.showMessage('Image submitted! Awaiting admin approval.');
+};
+
 // ==========================================
 // 2. DATABASE API
 // ==========================================
@@ -1425,6 +1495,9 @@ window.openSponsorDetails = async function(id) {
 };
 
 window.openModal = function(modalId) {
+  if (modalId === 'uploadModal' && typeof window.populateGalleryEvents === 'function') {
+      window.populateGalleryEvents();
+  }
   const modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.remove('hidden');
