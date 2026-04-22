@@ -521,13 +521,20 @@ window.toggleGalleryUploadType = function(type) {
 
 window.submitGalleryUpload = async function() {
     let linkData = "";
-    let eventName = document.getElementById('upload-event-name').value.trim();
     const eventSelect = document.getElementById('upload-event-select');
+    
+    if (!eventSelect.value || eventSelect.value === "") {
+        return window.showMessage("Please select an event from the dropdown.");
+    }
+
     let eventId = eventSelect.value !== 'other' ? eventSelect.value : null;
+    let eventName = document.getElementById('upload-event-name').value.trim();
     let captionData = document.getElementById('upload-context').value.trim();
 
     if (eventId !== null) {
         eventName = eventSelect.options[eventSelect.selectedIndex].text;
+    } else if (!eventName) {
+        return window.showMessage("Please type the name of the 'Other' event.");
     }
 
     if(window.galleryUploadType === 'link') {
@@ -548,15 +555,18 @@ window.submitGalleryUpload = async function() {
         if(typeof window.showMessage === 'function') return window.showMessage("Please provide an image file or link.");
         return;
     }
-    
-    if (!eventName) {
-        if(typeof window.showMessage === 'function') return window.showMessage("Please select or specify an event name.");
-        return;
-    }
 
     let finalCaption = captionData;
     if (eventId === null) {
         finalCaption = captionData + "$" + eventName;
+    }
+
+    let uId = window.userProfile.accountId;
+    if (!uId) {
+        try {
+            const st = JSON.parse(localStorage.getItem(window.CACHE_KEY));
+            if (st && st.userId) uId = st.userId;
+        } catch(e){}
     }
 
     const data = {
@@ -564,9 +574,9 @@ window.submitGalleryUpload = async function() {
         url: linkData,
         eventId: eventId,
         caption: finalCaption,
-        userId: window.userProfile.accountId,
+        userId: uId || "Unknown",
         status: 'Pending',
-        tags: `${eventName} ${captionData} ${window.userProfile.name}`.toLowerCase(),
+        tags: `${eventName} ${captionData} ${window.userProfile.name || ''}`.toLowerCase(),
         likes: 0
     };
     
@@ -648,14 +658,22 @@ window.DatabaseAPI = {
         let results = [...this._data[collection] || []];
         
         if (collection === 'gallery') {
+            if (!this._data.users || this._data.users.length === 0) {
+                try {
+                    const res = await this._fetchWithTimeout(`${window.BASE_URL}/users`);
+                    if (res.ok) this._data.users = await res.json();
+                } catch(e) {}
+            }
+
             const allEvents = Object.values(window.EVENTS_DATA || {}).flat();
             results = results.map(g => {
                 let mapped = { ...g };
-                const u = this._data.users?.find(user => user.id === g.userId);
-                mapped.user = u ? u.name : g.userId;
+                const u = (this._data.users || []).find(user => user.id === g.userId);
                 
-                if (g.eventId) {
-                    const ev = allEvents.find(e => e.id === g.eventId);
+                mapped.user = u ? u.name : (g.userId || 'Unknown User');
+                
+                if (g.eventId && g.eventId !== 'null' && g.eventId !== 'None') {
+                    const ev = allEvents.find(e => String(e.id) === String(g.eventId));
                     mapped.event = ev ? ev.name : 'Unknown Event';
                 } else if (g.caption && g.caption.includes('$')) {
                     const parts = g.caption.split('$');
@@ -762,12 +780,10 @@ window.EVENTS_DATA = { entrepreneurial: [], tech: [], cultural: [], shows: [], o
 window.groupEventsData = function(dbEvents) {
     let grouped = { entrepreneurial: [], tech: [], cultural: [], shows: [], online: [], festivals: [] };
     dbEvents.forEach(ev => {
-        // NORMALIZE CATEGORY: lowercase ensures it matches the object keys above
         const cat = (ev.category || 'tech').toLowerCase();
         if(grouped[cat]) {
             grouped[cat].push(ev); 
         } else {
-            // Fallback for unexpected categories
             grouped[cat] = [ev];
         }
     });
@@ -1010,7 +1026,6 @@ window.populateUserProfile = async function(user) {
     window.userProfile.registrations = regs.filter(r => r.leader === user.id || (r.members && r.members.includes(user.id)));
     window.userProfile.payments = pays.filter(p => p.userId === user.id || p.user === user.id);
     
-    // Convert day mapping back into duration string for UI
     const accomData = accoms.find(a => a.id === user.id) || null;
     if (accomData) {
         let dur = [];
