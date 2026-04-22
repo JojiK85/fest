@@ -577,7 +577,12 @@ window.submitGalleryUpload = async function() {
         userId: uId || "Unknown",
         status: 'Pending',
         tags: `${eventName} ${captionData} ${window.userProfile.name || ''}`.toLowerCase(),
-        likes: 0
+        likes: 0,
+        // UI Fix: Force-injecting local cache names to prevent "undefined" flicker in Admin Dashboard
+        event: eventName,
+        eventName: eventName, 
+        user: window.userProfile.name || "Unknown",
+        userName: window.userProfile.name || "Unknown"
     };
     
     await window.DatabaseAPI.add('gallery', data);
@@ -668,20 +673,28 @@ window.DatabaseAPI = {
             const allEvents = Object.values(window.EVENTS_DATA || {}).flat();
             results = results.map(g => {
                 let mapped = { ...g };
-                const u = (this._data.users || []).find(user => user.id === g.userId);
                 
-                mapped.user = u ? u.name : (g.userId || 'Unknown User');
+                // Fortified property parsing to bypass MySQL case sensitivity rules
+                const actualUserId = g.userId !== undefined ? g.userId : (g.userid !== undefined ? g.userid : g.user_id);
+                const actualEventId = g.eventId !== undefined ? g.eventId : (g.eventid !== undefined ? g.eventid : g.event_id);
                 
-                if (g.eventId && g.eventId !== 'null' && g.eventId !== 'None') {
-                    const ev = allEvents.find(e => String(e.id) === String(g.eventId));
+                const u = (this._data.users || []).find(user => user.id === actualUserId);
+                
+                mapped.user = u ? u.name : (actualUserId || 'Unknown User');
+                mapped.userName = mapped.user; // Double assignment for admin.js compatibility
+                
+                if (actualEventId && actualEventId !== 'null' && actualEventId !== 'None') {
+                    const ev = allEvents.find(e => String(e.id) === String(actualEventId));
                     mapped.event = ev ? ev.name : 'Unknown Event';
                 } else if (g.caption && g.caption.includes('$')) {
                     const parts = g.caption.split('$');
                     mapped.event = parts.pop();
                     mapped.caption = parts.join('$');
                 } else {
-                    mapped.event = 'Other Event';
+                    mapped.event = g.event || g.eventName || 'Other Event';
                 }
+                mapped.eventName = mapped.event; // Double assignment
+                
                 return mapped;
             });
         }
@@ -963,6 +976,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     tab.fn();
                 }
             });
+            
+            const galleryTab = document.getElementById('admin-gallery-tab');
+            if (galleryTab && !galleryTab.classList.contains('hidden') && typeof window.renderAdminDashboard === 'function') {
+                window.renderAdminDashboard(); 
+            }
         }
     });
 });
