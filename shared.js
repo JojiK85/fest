@@ -574,15 +574,10 @@ window.submitGalleryUpload = async function() {
         url: linkData,
         eventId: eventId,
         caption: finalCaption,
-        userId: uId || "Unknown",
+        userId: uId || null, // Null securely bypasses MySQL Foreign Key crashes
         status: 'Pending',
         tags: `${eventName} ${captionData} ${window.userProfile.name || ''}`.toLowerCase(),
-        likes: 0,
-        // UI Fix: Force-injecting local cache names to prevent "undefined" flicker in Admin Dashboard
-        event: eventName,
-        eventName: eventName, 
-        user: window.userProfile.name || "Unknown",
-        userName: window.userProfile.name || "Unknown"
+        likes: 0
     };
     
     await window.DatabaseAPI.add('gallery', data);
@@ -663,37 +658,20 @@ window.DatabaseAPI = {
         let results = [...this._data[collection] || []];
         
         if (collection === 'gallery') {
-            if (!this._data.users || this._data.users.length === 0) {
-                try {
-                    const res = await this._fetchWithTimeout(`${window.BASE_URL}/users`);
-                    if (res.ok) this._data.users = await res.json();
-                } catch(e) {}
-            }
-
-            const allEvents = Object.values(window.EVENTS_DATA || {}).flat();
             results = results.map(g => {
                 let mapped = { ...g };
                 
-                // Fortified property parsing to bypass MySQL case sensitivity rules
-                const actualUserId = g.userId !== undefined ? g.userId : (g.userid !== undefined ? g.userid : g.user_id);
-                const actualEventId = g.eventId !== undefined ? g.eventId : (g.eventid !== undefined ? g.eventid : g.event_id);
-                
-                const u = (this._data.users || []).find(user => user.id === actualUserId);
-                
-                mapped.user = u ? u.name : (actualUserId || 'Unknown User');
-                mapped.userName = mapped.user; // Double assignment for admin.js compatibility
-                
-                if (actualEventId && actualEventId !== 'null' && actualEventId !== 'None') {
-                    const ev = allEvents.find(e => String(e.id) === String(actualEventId));
-                    mapped.event = ev ? ev.name : 'Unknown Event';
-                } else if (g.caption && g.caption.includes('$')) {
+                // Fallback to manually parse '$' in browser if the backend was skipped
+                if (g.caption && g.caption.includes('$')) {
                     const parts = g.caption.split('$');
                     mapped.event = parts.pop();
                     mapped.caption = parts.join('$');
-                } else {
-                    mapped.event = g.event || g.eventName || 'Other Event';
                 }
-                mapped.eventName = mapped.event; // Double assignment
+                
+                mapped.user = g.user || g.userName || g.userId || 'Unknown User';
+                mapped.event = g.event || g.eventName || 'Other Event';
+                mapped.userName = mapped.user; // Set alias for admin.js rendering
+                mapped.eventName = mapped.event; 
                 
                 return mapped;
             });
