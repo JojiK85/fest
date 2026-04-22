@@ -430,19 +430,27 @@ def sync_to_google_sheets(api_collection_name):
             if 'eventId' in doc_data:
                 doc_data['eventName'] = event_id_to_name.get(doc_data['eventId'], doc_data['eventId'])
                 del doc_data['eventId']
+            
+            # --- FIX: Specifically intercept Gallery Other Event Name logic for Google Sheets ---
+            if api_collection_name == 'gallery':
+                if 'caption' in doc_data and doc_data['caption'] and '$' in str(doc_data['caption']):
+                    parts = str(doc_data['caption']).split('$')
+                    custom_event = parts.pop()
+                    doc_data['caption'] = '$'.join(parts)
+                    
+                    if not doc_data.get('eventName') or str(doc_data.get('eventName')).lower() in ['none', 'null', '']:
+                        doc_data['eventName'] = custom_event
+
             if 'leader' in doc_data:
                 doc_data['leaderName'] = get_name(doc_data['leader'])
                 del doc_data['leader']
             if 'userId' in doc_data: 
                 doc_data['userName'] = get_name(doc_data['userId'])
                 del doc_data['userId']
-                
-            # Mapping logic specifically for the new raw Junction Tables
             if 'user_id' in doc_data: 
                 doc_data['userName'] = get_name(doc_data['user_id'])
             if 'requested_user_id' in doc_data:
                 doc_data['requestedUserName'] = get_name(doc_data['requested_user_id'])
-                
             if 'requested' in doc_data and doc_data['requested']:
                 req_names = [get_name(x.strip()) for x in doc_data['requested'].split(',')]
                 doc_data['requestedNames'] = ' & '.join(req_names)
