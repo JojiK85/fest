@@ -573,23 +573,33 @@ def get_collection(collection):
             if collection == 'gallery':
                 cursor.execute("""
                     SELECT g.*, 
+                           COALESCE(u.name, g.userId) AS userName,
+                           e.name AS eventName,
                            COALESCE((SELECT CONCAT('[', GROUP_CONCAT(CONCAT('"', user_id, '"')), ']') 
                                      FROM gallery_likes WHERE gallery_id = g.id), '[]') as likedBy 
                     FROM gallery g
+                    LEFT JOIN users u ON g.userId = u.id
+                    LEFT JOIN events e ON g.eventId = e.id
                 """)
             elif collection == 'registrations':
                 cursor.execute("""
                     SELECT t.*, 
+                           COALESCE(u.name, t.leader) AS leaderName,
+                           e.name AS eventName,
                            COALESCE((SELECT CONCAT('[', GROUP_CONCAT(CONCAT('"', user_id, '"')), ']') 
                                      FROM team_members WHERE team_id = t.id), '[]') as members 
                     FROM teams t
+                    LEFT JOIN users u ON t.leader = u.id
+                    LEFT JOIN events e ON t.eventId = e.id
                 """)
             elif collection == 'accommodations':
                 cursor.execute("""
                     SELECT a.*, 
+                           COALESCE(u.name, a.userId) AS userName,
                            COALESCE((SELECT GROUP_CONCAT(requested_user_id SEPARATOR ', ') 
                                      FROM accommodation_requests WHERE accommodation_id = a.id), '') as requested 
                     FROM accommodations a
+                    LEFT JOIN users u ON a.userId = u.id
                 """)
             else:
                 cursor.execute(f"SELECT * FROM {db_table_name}")
@@ -605,6 +615,23 @@ def get_collection(collection):
             if isinstance(v, str) and (v.startswith('[') or v.startswith('{')):
                 try: doc[k] = json.loads(v)
                 except: pass
+        
+        # --- FIX: Natively Resolve Gallery Names & Parse '$' ---
+        if collection == 'gallery':
+            if doc.get('caption') and '$' in str(doc['caption']):
+                parts = str(doc['caption']).split('$')
+                custom_event = parts.pop()
+                doc['caption'] = '$'.join(parts)
+                if not doc.get('eventName'):
+                    doc['eventName'] = custom_event
+            
+            doc['event'] = doc.get('eventName') or 'Other Event'
+            doc['user'] = doc.get('userName') or doc.get('userId') or 'Unknown User'
+
+        elif collection == 'registrations':
+            doc['leaderName'] = doc.get('leaderName') or doc.get('leader')
+            doc['eventName'] = doc.get('eventName') or doc.get('eventId')
+
         results.append(doc)
     return jsonify(results), 200
 
